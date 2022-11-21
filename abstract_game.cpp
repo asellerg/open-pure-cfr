@@ -66,6 +66,9 @@ AbstractGame::AbstractGame( const Parameters &params )
   case CARD_ABS_BLIND:
     card_abs = new BlindCardAbstraction( );
     break;
+  case CARD_ABS_POTENTIAL:
+    card_abs = new PotentialAwareImperfectRecallAbstraction( );
+    break;
   default:
     fprintf( stderr, "AbstractGame constructor: "
 	     "Unrecognized card abstraction type [%s]\n",

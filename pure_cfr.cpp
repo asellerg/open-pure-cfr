@@ -16,6 +16,7 @@
 #include <sys/time.h>
 #include <assert.h>
 #include <unistd.h>
+#include <locale.h>
 
 /* C project-acpc-server includes */
 extern "C" {
@@ -44,6 +45,7 @@ typedef struct {
 } worker_thread_args_t;
 
 pthread_attr_t thread_attributes;
+
 
 void init_pure_cfr_counter( pure_cfr_counter_t &counter )
 {
@@ -327,6 +329,7 @@ void run_iterations( Parameters &params, PureCfrMachine &pcm )
 
 int main( const int argc, const char *argv[] )
 {
+  std::setlocale(LC_NUMERIC, "en_US.UTF-8");
   /* Parse command line */
   Parameters params;
   if( params.parse( argc, argv ) ) {

@@ -17,13 +17,15 @@ extern "C" {
 #include "acpc_server_code/game.h"
 }
 
+#include "parallel_hashmap/phmap.h"
+
 /* pure cfr includes */
 
 /* Maximum number of players this program can handle right now */
 const int MAX_PURE_CFR_PLAYERS = 3;
 
 /* Maximum number of abstract actions a player can choose from */
-const int MAX_ABSTRACT_ACTIONS = 4;
+const int MAX_ABSTRACT_ACTIONS = 5;
 
 /* Length of strings used for filenames */
 const int PATH_LENGTH = 1024;
@@ -34,8 +36,9 @@ const int ITERATION_BLOCK_SIZE = 1000;
 /* Enum of card abstraction types */
 typedef enum {
   CARD_ABS_NULL = 0,
-  CARD_ABS_BLIND = 1,
-  NUM_CARD_ABS_TYPES = 2
+  CARD_ABS_POTENTIAL = 1,
+  CARD_ABS_BLIND = 2,
+  NUM_CARD_ABS_TYPES = 3
 } card_abs_type_t;
 extern const char card_abs_type_to_str[ NUM_CARD_ABS_TYPES ][ PATH_LENGTH ];
 
@@ -73,5 +76,16 @@ REGRET_TYPES[ MAX_ROUNDS ];
 
 extern const pure_cfr_entry_type_t
 AVG_STRATEGY_TYPES[ MAX_ROUNDS ];
+
+#define NMSP phmap
+#define MTX std::mutex
+#define MAPNAME phmap::parallel_flat_hash_map
+#define EXTRAARGS , NMSP::priv::hash_default_hash<K>, \
+                            NMSP::priv::hash_default_eq<K>, \
+                            std::allocator<std::pair<const K, V>>, 4, MTX
+template <class K, class V>
+using HashT      = MAPNAME<K, V EXTRAARGS>;
+
+using hash_t     = HashT<uint64_t, uint16_t>;
 
 #endif

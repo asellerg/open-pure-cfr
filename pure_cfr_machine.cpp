@@ -14,6 +14,8 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <limits.h>
+#include "poker.h"
+#include "constants.hpp"
 
 /* C project_acpc_poker includes */
 extern "C" {
@@ -22,10 +24,13 @@ extern "C" {
 /* Pure CFR includes */
 #include "pure_cfr_machine.hpp"
 
+hash_t cache;
+
 PureCfrMachine::PureCfrMachine( const Parameters &params )
   : ag( params ),
     do_average( params.do_average )
 {
+  init_deck(deck);
   /* Check for problems */
   if( do_average && ag.game->numPlayers > 2 ) {
     fprintf( stderr, "Sorry, averaging not implemented for > 2 player games.  "
@@ -378,6 +383,12 @@ int PureCfrMachine::walk_pure_cfr( const int position,
     return retval;
   }
 
+  sw::redis::ConnectionOptions conn_options;
+  conn_options.type = sw::redis::ConnectionType::UNIX;
+  conn_options.path = "/run/redis.sock";
+  sw::redis::ConnectionPoolOptions pool_options;
+  pool_options.size = 20;
+  sw::redis::Redis redis = sw::redis::Redis(conn_options, pool_options);
   /* Grab some values that will be used often */
   int num_choices = cur_node->get_num_choices( );
   int8_t player = cur_node->get_player( );
@@ -387,8 +398,11 @@ int PureCfrMachine::walk_pure_cfr( const int position,
   if( ag.card_abs->can_precompute_buckets( ) ) {
     bucket = hand.precomputed_buckets[ player ][ round ];
   } else {
+    // uint8_t total_hand[7];
+    // memcpy(total_hand, hand.hole_cards, 2);
+    // memcpy(&total_hand[2], hand.board_cards, cur_node->get_round());
     bucket = ag.card_abs->get_bucket( ag.game, cur_node, hand.board_cards,
-				      hand.hole_cards );
+				      hand.hole_cards, cache, &redis);
   }
 
   /* Get the positive regrets at this information set */

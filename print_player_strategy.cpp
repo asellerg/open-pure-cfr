@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <iostream>
 
 /* C project-acpc-server includes */
 extern "C" {
@@ -39,35 +40,38 @@ static void print_strategy_r( PlayerModule &player_module,
     /* Get the state info in a string */
     char state_str[ PATH_LENGTH ];
     printState( ag->game, &state, PATH_LENGTH, state_str );
-    /* Remove the card information from the state string by finding the last colon
-     * and ending the string there, then print the state.
-     */
-    for( int i = strlen( state_str) - 1; i >= 0 && i < PATH_LENGTH; --i ) {
-      if( state_str[ i ] == ':' ) {
-	state_str[ i ] = '\0';
-	break;
-      }
-    }
-    printf( "%s\n", state_str );
+
+    auto redis = sw::redis::Redis("unix:///run/redis.sock/2");
   
     /* Print the player's action probabilities for every possible bucket */
     const int num_buckets = ag->card_abs->num_buckets( ag->game, state );
     for( int bucket = 0; bucket < num_buckets; ++bucket ) {
-
-      /* Get the action probabilities */
-      double action_probs[ MAX_ABSTRACT_ACTIONS ];
-      player_module.get_action_probs( state, action_probs, bucket );
+      std::string key = std::to_string(bucket);
+      /* Get the regrets */
+      int local_regrets[ MAX_ABSTRACT_ACTIONS ];
+      int has_pos_regrets = player_module.get_regrets( state, local_regrets, bucket );
+      if (has_pos_regrets == 0) {
+        continue;
+      }
 
       /* Print 'em out */
-      printf( "  Bucket %d:", bucket );
+      std::unordered_map<std::string, float> local_regrets_dict = {{"fold", 0.}, {"call", 0.}, {"raise 0.5", 0.}, {"raise 1", 0}};
+      std::unordered_map<int, std::string> action_abbrevs = {{0, "f"}, {1, "c"}, {2, "r0.5"}, {3, "r1"}};
+      std::unordered_map<int, std::string> action_full_name = {{0, "fold"}, {1, "call"}, {2, "raise 0.5"}, {3, "raise 1"}};
+      key.append(state_str);
+      std::string debug = key;
+      debug.append("\t");
       for( int a = 0; a < num_choices; ++a ) {
-	if( ( num_choices < 5 ) || ( action_probs[ a ] > 0.001 ) ) {
+    local_regrets_dict[action_full_name[a]] = local_regrets[a];
 	  char action_str[ PATH_LENGTH ];
-	  printAction( ag->game, &actions[ a ], PATH_LENGTH, action_str );
-	  printf( " %lg%%%s", action_probs[ a ] * 100, action_str );
-	}
+    debug.append(action_full_name[a]);
+    debug.append(":");
+    debug.append(std::to_string(local_regrets[a]));
+    debug.append("\t");
       }
-      printf( "\n" );
+      redis.hmset(key, local_regrets_dict.begin(), local_regrets_dict.end());
+      // std::cout << debug;
+      // printf( "\n" );
     }
   }
 

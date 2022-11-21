@@ -24,6 +24,7 @@ extern "C" {
 #include "constants.hpp"
 #include "hand.hpp"
 #include "abstract_game.hpp"
+#include "parallel_hashmap/phmap.h"
 
 class PureCfrMachine {
 public:
@@ -35,7 +36,7 @@ public:
   
   /* Returns 0 on success, 1 on failure, -1 on warning */
   int write_dump( const char *dump_prefix, const bool do_regrets = true ) const;
-  int load_dump( const char *dump_prefix ); 
+  int load_dump( const char *dump_prefix );
 
 protected:  
   int generate_hand( hand_t &hand, rng_state_t &rng );
@@ -48,6 +49,7 @@ protected:
   const bool do_average;
   Entries *regrets[ MAX_ROUNDS ];
   Entries *avg_strategy[ MAX_ROUNDS ];
+  uint deck[52];
 };
 
 #endif

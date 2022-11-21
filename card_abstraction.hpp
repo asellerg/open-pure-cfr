@@ -19,6 +19,10 @@ extern "C" {
 /* Pure CFR includes */
 #include "constants.hpp"
 #include "betting_node.hpp"
+#include <string>
+#include <sw/redis++/redis++.h>
+#include "parallel_hashmap/phmap.h"
+
 
 /* Base class */
 class CardAbstraction {
@@ -33,12 +37,12 @@ public:
 			  const BettingNode *node,
 			  const uint8_t board_cards[ MAX_BOARD_CARDS ],
 			  const uint8_t hole_cards[ MAX_PURE_CFR_PLAYERS ]
-			  [ MAX_HOLE_CARDS ] ) const = 0;
+			  [ MAX_HOLE_CARDS ],
+        hash_t cache,
+        sw::redis::Redis *redis = 0) const = 0;
   virtual bool can_precompute_buckets( ) const { return false; }
   virtual void precompute_buckets( const Game *game,
 				   hand_t &hand ) const;
-
-protected:
 };
 
 /* The null card abstraction treats every set of cards as its own bucket.
@@ -58,7 +62,9 @@ public:
 			  const BettingNode *node,
 			  const uint8_t board_cards[ MAX_BOARD_CARDS ],
 			  const uint8_t hole_cards[ MAX_PURE_CFR_PLAYERS ]
-			  [ MAX_HOLE_CARDS ] ) const;
+			  [ MAX_HOLE_CARDS ],
+        hash_t cache,
+        sw::redis::Redis *redis = 0) const;
   virtual bool can_precompute_buckets( ) const { return true; }
   virtual void precompute_buckets( const Game *game,
 				   hand_t &hand ) const;
@@ -90,10 +96,32 @@ public:
 			  const BettingNode *node,
 			  const uint8_t board_cards[ MAX_BOARD_CARDS ],
 			  const uint8_t hole_cards[ MAX_PURE_CFR_PLAYERS ]
-			  [ MAX_HOLE_CARDS ] ) const;
+			  [ MAX_HOLE_CARDS ],
+        hash_t cache,
+        sw::redis::Redis *redis = 0) const;
   virtual bool can_precompute_buckets( ) const { return true; }
   virtual void precompute_buckets( const Game *game,
 				   hand_t &hand ) const;
+};
+
+
+class PotentialAwareImperfectRecallAbstraction : public CardAbstraction {
+public:
+
+  PotentialAwareImperfectRecallAbstraction( );
+  virtual ~PotentialAwareImperfectRecallAbstraction( );
+
+
+  virtual int num_buckets( const Game *game, const BettingNode *node ) const;
+  virtual int num_buckets( const Game *game, const State &state ) const;
+  virtual int get_bucket( const Game *game,
+        const BettingNode *node,
+        const uint8_t board_cards[ MAX_BOARD_CARDS ],
+        const uint8_t hole_cards[ MAX_PURE_CFR_PLAYERS ]
+        [ MAX_HOLE_CARDS ],
+        hash_t cache,
+        sw::redis::Redis *redis = 0) const;
+  virtual bool can_precompute_buckets( ) const { return false; }
 };
 
 #endif

@@ -37,6 +37,10 @@ public:
 				 double action_probs
 				 [ MAX_ABSTRACT_ACTIONS ],
 				 int bucket = -1 );
+  virtual int get_regrets( State &state,
+         int local_regrets
+         [ MAX_ABSTRACT_ACTIONS ],
+         int bucket = -1 );
   virtual Action get_action( State &state );
 
 protected:

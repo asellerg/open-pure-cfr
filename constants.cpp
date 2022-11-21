@@ -13,7 +13,7 @@
 #include "constants.hpp"
 
 const char card_abs_type_to_str[ NUM_CARD_ABS_TYPES ][ PATH_LENGTH ]
-= { "NULL", "BLIND" };
+= { "NULL", "POTENTIAL", "BLIND" };
 
 const char action_abs_type_to_str[ NUM_ACTION_ABS_TYPES ][ PATH_LENGTH ]
 = { "NULL", "FCPA" };

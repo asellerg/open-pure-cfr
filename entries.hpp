@@ -32,6 +32,10 @@ public:
 				   const int64_t soln_idx,
 				   const int num_choices,
 				   uint64_t *pos_values ) const = 0;
+  virtual int get_local_values( const int bucket,
+           const int64_t soln_idx,
+           const int num_choices,
+           int *pos_values ) const = 0;
   virtual void update_regret( const int bucket,
 			      const int64_t soln_idx,
 			      const int num_choices,
@@ -66,6 +70,10 @@ public:
 				   const int64_t soln_idx,
 				   const int num_choices,
 				   uint64_t *pos_values ) const;
+  virtual int get_local_values( const int bucket,
+           const int64_t soln_idx,
+           const int num_choices,
+           int *pos_values ) const;
   virtual void update_regret( const int bucket,
 			      const int64_t soln_idx,
 			      const int num_choices,
@@ -112,6 +120,7 @@ Entries_der<T>::Entries_der( size_t new_num_entries_per_bucket,
   if( loaded_data != NULL ) {
     entries = loaded_data;
   } else {
+    printf("num_entries: %d\n", total_num_entries);
     entries = ( T * ) calloc( total_num_entries, sizeof( T ) );
     /* If you hit this assert, you have run out of RAM!
      * Use a smaller game or coarser abstractions.
@@ -144,6 +153,26 @@ uint64_t Entries_der<T>::get_pos_values( const int bucket,
   uint64_t sum_values = 0;
   for( int c = 0; c < num_choices; ++c ) {
     local_entries[ c ] *= ( local_entries[ c ] > 0 );
+    values[ c ] = local_entries[ c ];
+    sum_values += local_entries[ c ];
+  }
+
+  return sum_values;
+}
+
+template <typename T>
+int Entries_der<T>::get_local_values( const int bucket,
+           const int64_t soln_idx,
+           const int num_choices,
+           int *values ) const
+{
+  /* Get the local entries at this index */
+  size_t base_index = get_entry_index( bucket, soln_idx );
+  T local_entries[ num_choices ];
+  memcpy( local_entries, &entries[ base_index ], num_choices * sizeof( T ) );
+
+  int sum_values = 0;
+  for( int c = 0; c < num_choices; ++c ) {
     values[ c ] = local_entries[ c ];
     sum_values += local_entries[ c ];
   }

@@ -100,7 +100,8 @@ static enum ActionType charToAction[ 256 ] = {
 
 static char actionChars[ a_invalid +1 ] = "fcr";
 
-static char suitChars[ MAX_SUITS +1] = "cdhs";
+// static char suitChars[ MAX_SUITS +1] = "cdhs";
+static char suitChars[ MAX_SUITS +1] = "shdc";
 static char rankChars[ MAX_RANKS +1] = "23456789TJQKA";
 
 
@@ -1237,27 +1238,88 @@ static int printBetting( const Game *game, const State *state,
   int i, a, c, r;
 
   c = 0;
+  int pot_size = 150;
+  State *currState = malloc(sizeof(State));
+  initState(game, 0, currState);
+  int spent[ MAX_PLAYERS ] = { 100, 50 };
   for( i = 0; i <= state->round; ++i ) {
-
+    int curr = 0;
+    if (i == 0) {
+      curr = 1;
+      string[ c ] = '|';
+      ++c;
+      string[ c ] = 'p';
+      ++c;
+      string[ c ] = '|';
+      ++c;
+    }
     /* print state separator */
     if( i != 0 ) {
 
       if( c >= maxLen ) {
 	return -1;
       }
-      string[ c ] = '/';
+      string[ c ] = '|';
+      ++c;
+      if (i == 1) {
+        string[ c ] = 'f';
+      } else if (i == 2) {
+        string[ c ] = 't';
+      } else if (i == 3) {
+        string[ c ] = 'r';
+      }
+      ++c;
+      string[ c ] = '|';
       ++c;
     }
 
     /* print betting for round */
     for( a = 0; a < state->numActions[ i ]; ++a ) {
+      int opponent = 1 - curr;
+      Action *action = &state->action[ i ][ a ];
 
-      r = printAction( game, &state->action[ i ][ a ],
-		       maxLen - c, &string[ c ] );
+      // r = printAction( game, &state->action[ i ][ a ],
+      //      maxLen - c, &string[ c ] );
+
+      int r = 0;
+      if (action->type == a_fold) {
+        string[ c ] = 'f';
+        ++r;
+      } else if (action->type == a_call) {
+        string[ c ] = 'c';
+        ++r;
+      } else if (action->type == a_raise) {
+        string[ c ] = 'r';
+        ++c;
+        int32_t pot_size = 0;
+        for (int i = 0; i < MAX_PLAYERS; i++) {
+          pot_size += currState->spent[i];
+        }
+        uint8_t player = currentPlayer( game, currState );
+        int amount_to_call = currState->maxSpent - currState->spent[ player ];
+        pot_size += amount_to_call;
+        int pot_raise_size = pot_size + ( currState->spent[ player ] + amount_to_call );
+        float raise_size = 1.0 * (action->size) / (pot_raise_size);
+        if (raise_size > 0.5) {
+          string[ c ] = '1';
+          ++r;
+          // r += snprintf( &string[ c ], maxLen - c, "%1.f", raise_size );
+        } else {
+          string[ c ] = '0'; c++;
+          string[ c ] = '.'; c++;
+          string[ c ] = '5'; c++;
+        }
+
+      }
       if( r < 0 ) {
-	return -1;
+        return -1;
       }
       c += r;
+      doAction(game, action, currState);
+      if (a < state->numActions[ i ] - 1) {
+        string[ c ] = ',';
+        ++c;
+      }
     }
   }
 
@@ -1550,11 +1612,11 @@ static int printStateCommon( const Game *game, const State *state,
   c = 0;
 
   /* HEADER:handId: */
-  r = snprintf( &string[ c ], maxLen - c, ":%"PRIu32":", state->handId );
-  if( r < 0 ) {
-    return -1;
-  }
-  c += r;
+  // r = snprintf( &string[ c ], maxLen - c, ":%"PRIu32":", state->handId );
+  // if( r < 0 ) {
+  //   return -1;
+  // }
+  // c += r;
 
   /* HEADER:handId:betting */
   r = printBetting( game, state, maxLen - c, &string[ c ] );
@@ -1567,8 +1629,8 @@ static int printStateCommon( const Game *game, const State *state,
   if( c >= maxLen ) {
     return -1;
   }
-  string[ c ] = ':';
-  ++c;
+  // string[ c ] = ':';
+  // ++c;
 
   return c;
 }
@@ -1581,11 +1643,11 @@ int printState( const Game *game, const State *state,
   c = 0;
 
   /* STATE */
-  r = snprintf( &string[ c ], maxLen - c, "STATE" );
-  if( r < 0 ) {
-    return -1;
-  }
-  c += r;
+  // r = snprintf( &string[ c ], maxLen - c, "STATE" );
+  // if( r < 0 ) {
+  //   return -1;
+  // }
+  // c += r;
 
   /* STATE:handId:betting: */
   r = printStateCommon( game, state, maxLen - c, &string[ c ] );
@@ -1594,19 +1656,19 @@ int printState( const Game *game, const State *state,
   }
   c += r;
 
-  /* STATE:handId:betting:holeCards */
-  r = printAllHoleCards( game, state, maxLen - c, &string[ c ] );
-  if( r < 0 ) {
-    return -1;
-  }
-  c += r;
+  // /* STATE:handId:betting:holeCards */
+  // r = printAllHoleCards( game, state, maxLen - c, &string[ c ] );
+  // if( r < 0 ) {
+  //   return -1;
+  // }
+  // c += r;
 
-  /* STATE:handId:betting:holeCards boardCards */
-  r = printBoardCards( game, state, maxLen - c, &string[ c ] );
-  if( r < 0 ) {
-    return -1;
-  }
-  c += r;
+  // /* STATE:handId:betting:holeCards boardCards */
+  // r = printBoardCards( game, state, maxLen - c, &string[ c ] );
+  // if( r < 0 ) {
+  //   return -1;
+  // }
+  // c += r;
 
   if( c >= maxLen ) {
     return -1;
@@ -1703,7 +1765,6 @@ int printAction( const Game *game, const Action *action,
 
   if( game->bettingType == noLimitBetting && action->type == a_raise ) {
     /* 2010 AAAI no-limit format has a size for bet/raise */
-
     r = snprintf( &string[ c ], maxLen - c, "%"PRId32, action->size );
     if( r < 0 ) {
       return -1;

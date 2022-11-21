@@ -18,8 +18,10 @@ extern "C" {
 }
 
 /* Pure CFR includes */
+#include "constants.hpp"
 #include "player_module.hpp"
 #include "utility.hpp"
+#include <sw/redis++/redis++.h>
 
 PlayerModule::PlayerModule( const char *player_file )
   : ag( NULL ),
@@ -66,8 +68,7 @@ PlayerModule::PlayerModule( const char *player_file )
 		 line );
 	exit( -1 );
       }
-      sprintf( binary_filename, "%s.%s", tmp,
-	       ( params.do_average ? "avg-strategy" : "regrets" ) );
+      sprintf( binary_filename, "%s.regrets", tmp);
 
     } else {
       fprintf( stderr, "Can't parse line [%s] of player file [%s]\n",
@@ -142,6 +143,215 @@ PlayerModule::~PlayerModule( )
   delete ag;
   ag = NULL;
 }
+
+int PlayerModule::get_regrets( State &state,
+              int local_regrets
+              [ MAX_ABSTRACT_ACTIONS ],
+              int bucket )
+{
+  /* Initialize action probs to the default in case we must abort early
+   * for one of several reasons
+   */  
+  
+  if( verbose ) {
+    char tmp[ PATH_LENGTH ];
+    printState( ag->game, &state, PATH_LENGTH, tmp );
+    fprintf( stderr, "\nCurrent real state: %s\n", tmp );
+  }
+
+  /* Find the current node from the sequence of actions in state */
+  const BettingNode *node = ag->betting_tree_root;
+  State old_state;
+  initState( ag->game, 0, &old_state );
+  if( verbose ) {
+    fprintf( stderr, "Translated abstract state: " );
+  }
+  for( int r = 0; r <= state.round; ++r ) {
+    for( int a = 0; a < state.numActions[ r ]; ++a ) {
+      const Action real_action = state.action[ r ][ a ];
+      Action abstract_actions[ MAX_ABSTRACT_ACTIONS ];
+      int num_actions = ag->action_abs->get_actions( ag->game, old_state,
+                 abstract_actions );
+      if( num_actions != node->get_num_choices( ) ) {
+  if( verbose ) {
+    fprintf( stderr, "Number of actions %d does not match number "
+       "of choices %d\n", num_actions, node->get_num_choices( ) );
+  }
+  return 0;
+      }
+      int choice;
+      if( ( ag->game->bettingType == noLimitBetting )
+    && ( real_action.type == a_raise ) ) {
+  /* Need to translate raise action into a raise that we understand.
+   * What fun...
+   * For now, let's just use soft translation with geometric similarity as
+   * described by [Schnizlein, Bowling, and Szafron; IJCAI 2009],
+   * and let's just ignore any issues arising from repeated translation
+   * of successive decisions.  We'll also use stack ratios rather than
+   * pot fraction ratios just to keep life a little easier.  This is a
+   * fairly naive approach to translation and can likely be improved.
+   */
+
+  /* First, find the smallest abstract raise greater than or equal to the
+   * real raise size (upper), and the largest abstract raise less than or
+   * equal to the real raise size (lower).
+   */
+  int32_t lower = 0, upper = ag->game->stack[ node->get_player( ) ] + 1;
+  int lower_choice = -1, upper_choice = -1;
+  for( int i = 0; i < num_actions; ++i ) {
+    if( abstract_actions[ i ].type == a_raise ) {
+      if( ( abstract_actions[ i ].size <= real_action.size )
+    && ( abstract_actions[ i ].size >= lower ) ) {
+        lower = abstract_actions[ i ].size;
+        lower_choice = i;
+      }
+      if( ( abstract_actions[ i ].size >= real_action.size )
+    && ( abstract_actions[ i ].size <= upper ) ) {
+        upper = abstract_actions[ i ].size;
+        upper_choice = i;
+      }     
+    }
+  }
+
+  /* 4 cases to consider depending on the lower and upper found above */
+  if( lower == upper ) {
+    /* We have an exact match! */
+    choice = lower_choice; /* Should be the same as upper_choice */
+  } else if( lower_choice == -1 ) {
+    /* No abstract raise less than or equal to real action raise */
+    if( upper_choice == -1 ) {
+      if( verbose ) {
+        fprintf( stderr, "Could not translate at round %d turn %d\n",
+           r, a );
+      }
+      return 0;
+    }
+    choice = upper_choice;
+  } else if( upper_choice == -1 ) {
+    /* No abstract raise greater than or equal to real action raise */
+    if( lower_choice == -1 ) {
+      if( verbose ) {
+        fprintf( stderr, "Could not translate at round %d turn %d\n",
+           r, a );
+      }
+      return 0;
+    }
+    choice = lower_choice;
+  } else {
+    /* Get similarity metric values for lower and upper raises */
+    double lower_sim
+      = ( ( 1.0 * lower / real_action.size ) - ( 1.0 * lower / upper ) )
+      / ( 1 - ( 1.0 * lower / upper ) );
+
+    double upper_sim
+      = ( ( 1.0 * real_action.size / upper ) - ( 1.0 * lower / upper ) )
+      / ( 1 - ( 1.0 * lower / upper ) );
+
+    /* Throw a dart and probabilistically choose lower or upper */
+    double dart = genrand_real2( &rng );
+    if( dart < ( lower_sim / ( lower_sim + upper_sim ) ) ) {
+      choice = lower_choice;
+    } else {
+      choice = upper_choice;
+    }
+  }
+  
+      } else {
+  /* Limit game or non-raise action. Just match the real action. */
+  for( choice = 0; choice < num_actions; ++choice ) {
+    if( abstract_actions[ choice ].type == real_action.type ) {
+      break;
+    }
+  }
+  if( choice >= num_actions ) {
+    if( verbose ) {
+      fprintf( stderr, "Unable to translate action at round %d, turn %d; "
+         "actions available are:", r, a );
+      for( int i = 0; i < num_actions; ++i ) {
+        char action_str[ PATH_LENGTH ];
+        printAction( ag->game, &abstract_actions[ i ], PATH_LENGTH,
+         action_str );
+        fprintf( stderr, " %s", action_str );
+      }
+      fprintf( stderr, "\n" );
+    }
+    return 0;
+  }
+      }
+
+      if( verbose ) {
+  char action_str[ PATH_LENGTH ];
+  printAction( ag->game, &abstract_actions[ choice ],
+         PATH_LENGTH, action_str );
+  fprintf( stderr, " %s", action_str );
+      }
+      /* Move the current node and old_state along */
+      node = node->get_child( );
+      for( int i = 0; i < choice; ++i ) {
+  node = node->get_sibling( );
+  if( node == NULL ) {
+    if( verbose ) {
+      fprintf( stderr, "Ran out of siblings for choice %d\n", choice );
+    }
+    return 0;
+  }
+      }
+      if( node->get_child( ) == NULL ) {
+  if( verbose ) {
+    fprintf( stderr, " Abstract game over\n" );
+  }
+  return 0;
+      }
+      doAction( ag->game, &abstract_actions[ choice ], &old_state );
+    }
+  }
+
+  /* Bucket the cards */
+  hash_t cache;
+  auto redis = sw::redis::Redis("unix://run/redis.sock/0");
+  if( bucket == -1 ) {
+    bucket = ag->card_abs->get_bucket( ag->game, node,
+               state.boardCards, state.holeCards, cache, &redis);
+  }
+  if( verbose ) {
+    fprintf( stderr, " Bucket=%d\n", bucket );
+  }
+
+  /* Check for problems */
+  if( currentPlayer( ag->game, &state ) != node->get_player( ) ) {
+    if( verbose ) {
+      fprintf( stderr, "Abstract player does not match current player\n" );
+    }
+    return 0;
+  }
+  if( state.round != node->get_round( ) ) {
+    if( verbose ) {
+      fprintf( stderr, "Abstract round does not match current round\n" );
+    }
+    return 0;
+  }
+
+  /* Get the positive entries at this information set */
+  int num_choices = node->get_num_choices( );
+  int64_t soln_idx = node->get_soln_idx( );
+  int8_t round = node->get_round( );
+  int values[ num_choices ];
+  int sum_entries = entries[ round ]->get_local_values( bucket, soln_idx, num_choices, values );
+
+  /* Get the abstract game action probabilities */
+  if( sum_entries == 0 ) {
+    if( verbose ) {
+      fprintf( stderr, "ALL POSITIVE ENTRIES ARE ZERO\n" );
+    }
+    return 0;
+  }
+  memset( local_regrets, 0, MAX_ABSTRACT_ACTIONS * sizeof( local_regrets[ 0 ] ) );
+  for( int c = 0; c < num_choices; ++c ) {
+    local_regrets[ c ] = values[ c ];
+  }
+  return 1;
+}
+
 
 void PlayerModule::get_action_probs( State &state,
 				      double action_probs
@@ -307,9 +517,11 @@ void PlayerModule::get_action_probs( State &state,
   }
 
   /* Bucket the cards */
+  hash_t cache;
+  auto redis = sw::redis::Redis("unix://run/redis.sock/0");
   if( bucket == -1 ) {
     bucket = ag->card_abs->get_bucket( ag->game, node,
-				       state.boardCards, state.holeCards );
+               state.boardCards, state.holeCards, cache, &redis);
   }
   if( verbose ) {
     fprintf( stderr, " Bucket=%d\n", bucket );

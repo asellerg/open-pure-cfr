@@ -94,7 +94,7 @@ int FcpaActionAbstraction::get_actions( const Game *game,
 					Action actions
 					[ MAX_ABSTRACT_ACTIONS ] ) const
 {
-  assert( MAX_ABSTRACT_ACTIONS >= 4 );
+  assert( MAX_ABSTRACT_ACTIONS >= 5 );
   
   int num_actions = 0;
   for( int a = 0; a < NUM_ACTION_TYPES; ++a ) {
@@ -118,15 +118,21 @@ int FcpaActionAbstraction::get_actions( const Game *game,
 	 * after making the raise.
 	 */
 	int pot_raise_size = pot + ( state.spent[ player ] + amount_to_call );
+	int half_pot_raise_size = int(0.5 * pot_raise_size);
+	if( half_pot_raise_size < max_raise_size ) {
+	  actions[ num_actions ] = action;
+	  actions[ num_actions ].size = half_pot_raise_size;
+	  ++num_actions;	  
+	}
 	if( pot_raise_size < max_raise_size ) {
 	  actions[ num_actions ] = action;
 	  actions[ num_actions ].size = pot_raise_size;
 	  ++num_actions;	  
 	}
 	/* Now add all-in */
-	actions[ num_actions ] = action;
-	actions[ num_actions ].size = max_raise_size;
-	++num_actions;
+	// actions[ num_actions ] = action;
+	// actions[ num_actions ].size = max_raise_size;
+	// ++num_actions;
       }
 	
     } else if( isValidAction( game, &state, 0, &action ) ) {
