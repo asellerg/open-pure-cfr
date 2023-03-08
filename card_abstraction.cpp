@@ -81,7 +81,7 @@ int NullCardAbstraction::get_bucket( const Game *game,
 				     const uint8_t hole_cards
 				     [ MAX_PURE_CFR_PLAYERS ]
 				     [ MAX_HOLE_CARDS ],
-             hash_t cache,
+             hash_t *cache,
              sw::redis::Redis *redis) const
 {
   return get_bucket_internal( game, board_cards, hole_cards,
@@ -149,7 +149,7 @@ int PotentialAwareImperfectRecallAbstraction::num_buckets( const Game *game,
     case 2:
       return 201;
     case 3:
-      return 501;
+      return 201;
   }
   return 1;
 }
@@ -165,7 +165,7 @@ int PotentialAwareImperfectRecallAbstraction::num_buckets( const Game *game,
     case 2:
       return 201;
     case 3:
-      return 501;
+      return 201;
   }
   return 1;
 }
@@ -181,13 +181,19 @@ int compare_card(void const *a, void const *b) {
 
 
 void get_redis_key(const uint8_t* cards, int num_cards, char *buffer) {
-    // char hand[num_cards][3];
     uint8_t hand_int[num_cards];
     for (int i = 0; i < num_cards; i++) {
       hand_int[i] = cards[i];
     }
     std::qsort(hand_int, num_cards, sizeof(uint8_t), compare_card);
     printCards(num_cards, hand_int, 11, buffer);
+}
+
+void sort_cards(const uint8_t* cards, int num_cards, uint64_t *hand_int) {
+    for (int i = 0; i < num_cards; i++) {
+      hand_int[i] = cards[i] + 1;
+    }
+    std::qsort(hand_int, num_cards, sizeof(uint64_t), compare_card);
 }
 
 
@@ -198,43 +204,38 @@ int PotentialAwareImperfectRecallAbstraction::get_bucket( const Game *game,
               const uint8_t hole_cards
               [ MAX_PURE_CFR_PLAYERS ]
               [ MAX_HOLE_CARDS ],
-              hash_t cache,
+              hash_t* cache,
               sw::redis::Redis *redis) const
 {
-  // auto redis = Redis("tcp://127.0.0.1:6380/0");
   uint16_t bucket = 0;
-  char hand[5];
-  get_redis_key(hole_cards[node->get_player()], 2, hand);
+  uint64_t sorted_hole_cards[2];
+  sort_cards(hole_cards[node->get_player()], 2, sorted_hole_cards);
   uint64_t idx = 0;
   if (node->get_round() == 0) {
-    idx = (hole_cards[node->get_player()][0]) | (hole_cards[node->get_player()][1] << 8);
-    if (cache.count(idx)) {
-      return cache[idx];
+    idx = (sorted_hole_cards[0]) | (sorted_hole_cards[1] << 8);
+    if (!cache->count(idx)) {
+      printf("Missing idx: %d for hole cards %d %d.\n", idx, sorted_hole_cards[0], sorted_hole_cards[1]);
+      return 0;
     }
-    std::string hand_str = std::string(hand);
-    bucket = std::stoi(*redis->get(hand));
-    cache.insert(hash_t::value_type(idx, bucket));
+    bucket = (*cache)[idx];
     return bucket;
   }
-  char board[11];
+  uint64_t sorted_board_cards[5] = {0};
   if (node->get_round() == 1) {
-    get_redis_key(board_cards, 3, board);
-    idx = (hole_cards[node->get_player()][0]) | (hole_cards[node->get_player()][1] << 8) | (board_cards[0] << 16) | (board_cards[1] << 24) | (board_cards[2] << 32);
+    sort_cards(board_cards, 3, sorted_board_cards);
+    idx = (sorted_hole_cards[0]) | (sorted_hole_cards[1] << 8) | (sorted_board_cards[0] << 16) | (sorted_board_cards[1] << 24) | (sorted_board_cards[2] << 32);
   } else if (node->get_round() == 2) {
-    get_redis_key(board_cards, 4, board);
-    idx = (hole_cards[node->get_player()][0]) | (hole_cards[node->get_player()][1] << 8) | (board_cards[0] << 16) | (board_cards[1] << 24) | (board_cards[2] << 32) | (board_cards[3] << 40);
+    sort_cards(board_cards, 4, sorted_board_cards);
+    idx = (sorted_hole_cards[0]) | (sorted_hole_cards[1] << 8) | (sorted_board_cards[0] << 16) | (sorted_board_cards[1] << 24) | (sorted_board_cards[2] << 32) | (sorted_board_cards[3] << 40);
   } else if (node->get_round() == 3) {
-    get_redis_key(board_cards, 5, board);
-    idx = (hole_cards[node->get_player()][0]) | (hole_cards[node->get_player()][1] << 8) | (board_cards[0] << 16) | (board_cards[1] << 24) | (board_cards[2] << 32) | (board_cards[3] << 40) | (board_cards[4] << 48);
+    sort_cards(board_cards, 5, sorted_board_cards);
+    idx = (sorted_hole_cards[0]) | (sorted_hole_cards[1] << 8) | (sorted_board_cards[0] << 16) | (sorted_board_cards[1] << 24) | (sorted_board_cards[2] << 32) | (sorted_board_cards[3] << 40) | (sorted_board_cards[4] << 48);
   }
-  if (cache.count(idx)) {
-    return cache[idx];
+  if (!cache->count(idx)) {
+    printf("Missing idx: %d for board %d %d %d %d %d %d %d.\n", idx, sorted_hole_cards[0], sorted_hole_cards[1], sorted_board_cards[0], sorted_board_cards[1], sorted_board_cards[2], sorted_board_cards[3], sorted_board_cards[4]);
+    return 0;
   }
-  std::string buffer = std::string(hand) + board;
-  char key[15];
-  strcpy(key, buffer.c_str());
-  bucket = std::stoi(*redis->get(key));
-  cache.insert(hash_t::value_type(idx, bucket));
+  bucket = (*cache)[idx];
   return bucket;
 }
 
@@ -265,7 +266,7 @@ int BlindCardAbstraction::get_bucket( const Game *game,
 				      const uint8_t hole_cards
 				      [ MAX_PURE_CFR_PLAYERS ]
 				      [ MAX_HOLE_CARDS ],
-              hash_t cache,
+              hash_t *cache,
               sw::redis::Redis *redis) const
 {
   return 0;

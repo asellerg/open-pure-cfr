@@ -22,6 +22,7 @@ extern "C" {
 #include "card_abstraction.hpp"
 #include "action_abstraction.hpp"
 #include "betting_node.hpp"
+#include <map>
 
 class AbstractGame {
 public:
@@ -38,6 +39,7 @@ public:
   const ActionAbstraction *action_abs;
   
   BettingNode *betting_tree_root;
+  std::map<uint16_t, BettingNode*> roots [ MAX_ROUNDS ][ MAX_ABSTRACT_ACTIONS ];
 
 protected:
 

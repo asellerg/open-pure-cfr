@@ -110,8 +110,8 @@ static int consumeSpaces( const char *string, int consumeEqual )
   int i;
 
   for( i = 0; string[ i ] != 0
-	 && ( isspace( string[ i ] )
-	      || ( consumeEqual && string[ i ] == '=' ) );
+   && ( isspace( string[ i ] )
+        || ( consumeEqual && string[ i ] == '=' ) );
        ++i ) {
   }
 
@@ -124,9 +124,9 @@ static int consumeSpaces( const char *string, int consumeEqual )
    returns the number of characters consumed doing this in charsConsumed
    returns the number of items read */
 static int readItems( const char *itemFormat, const int numItems,
-		      const char *string, const int consumeEqual,
-		      void *items, const size_t itemSize,
-		      int *charsConsumed )
+          const char *string, const int consumeEqual,
+          void *items, const size_t itemSize,
+          int *charsConsumed )
 {
   int i, c, r;
   char *fmt;
@@ -198,15 +198,15 @@ Game *readGame( FILE *file )
     } else if( !strncasecmp( line, "stack", 5 ) ) {
 
       stackRead = readItems( "%"SCNd32, MAX_PLAYERS, &line[ 5 ],
-				 1, game->stack, 4, &c );
+         1, game->stack, 4, &c );
     } else if( !strncasecmp( line, "blind", 5 ) ) {
 
       blindRead = readItems( "%"SCNd32, MAX_PLAYERS, &line[ 5 ],
-			     1, game->blind, 4, &c );
+           1, game->blind, 4, &c );
     } else if( !strncasecmp( line, "raisesize", 9 ) ) {
 
       raiseSizeRead = readItems( "%"SCNd32, MAX_PLAYERS, &line[ 9 ],
-				 1, game->raiseSize, 4, &c );
+         1, game->raiseSize, 4, &c );
     } else if( !strncasecmp( line, "limit", 5 ) ) {
 
       game->bettingType = limitBetting;
@@ -222,11 +222,11 @@ Game *readGame( FILE *file )
     } else if( !strncasecmp( line, "firstplayer", 11 ) ) {
 
       readItems( "%"SCNu8, MAX_ROUNDS, &line[ 11 ],
-		 1, game->firstPlayer, 1, &c );
+     1, game->firstPlayer, 1, &c );
     } else if( !strncasecmp( line, "maxraises", 9 ) ) {
 
       readItems( "%"SCNu8, MAX_ROUNDS, &line[ 9 ],
-		 1, game->maxRaises, 1, &c );
+     1, game->maxRaises, 1, &c );
     } else if( !strncasecmp( line, "numsuits", 8 ) ) {
 
       readItems( "%"SCNu8, 1, &line[ 8 ], 1, &game->numSuits, 1, &c );
@@ -239,7 +239,7 @@ Game *readGame( FILE *file )
     } else if( !strncasecmp( line, "numboardcards", 13 ) ) {
 
       boardCardsRead = readItems( "%"SCNu8, MAX_ROUNDS, &line[ 13 ],
-				  1, game->numBoardCards, 1, &c );
+          1, game->numBoardCards, 1, &c );
     }
   }
 
@@ -254,7 +254,7 @@ Game *readGame( FILE *file )
   if( game->numPlayers < 2 || game->numPlayers > MAX_PLAYERS ) {
 
     fprintf( stderr, "invalid number of players: %"PRIu8"\n",
-	     game->numPlayers );
+       game->numPlayers );
     free( game );
     return NULL;
   }
@@ -262,7 +262,7 @@ Game *readGame( FILE *file )
   if( stackRead < game->numPlayers ) {
 
     fprintf( stderr, "only read %"PRIu8" stack sizes, need %"PRIu8"\n",
-	    stackRead, game->numPlayers );
+      stackRead, game->numPlayers );
     free( game );
     return NULL;
   }
@@ -270,7 +270,7 @@ Game *readGame( FILE *file )
   if( blindRead < game->numPlayers ) {
 
     fprintf( stderr, "only read %"PRIu8" blinds, need %"PRIu8"\n",
-	    blindRead, game->numPlayers );
+      blindRead, game->numPlayers );
     free( game );
     return NULL;
   }
@@ -278,7 +278,7 @@ Game *readGame( FILE *file )
 
     if( game->blind[ c ] > game->stack[ c ] ) {
       fprintf( stderr, "blind for player %d is greater than stack size\n",
-	       c + 1 );
+         c + 1 );
       free( game );
       return NULL;
     }
@@ -288,7 +288,7 @@ Game *readGame( FILE *file )
       && raiseSizeRead < game->numRounds ) {
 
     fprintf( stderr, "only read %"PRIu8" raise sizes, need %"PRIu8"\n",
-	     raiseSizeRead, game->numRounds );
+       raiseSizeRead, game->numRounds );
     free( game );
     return NULL;
   }
@@ -296,10 +296,10 @@ Game *readGame( FILE *file )
   for( c = 0; c < game->numRounds; ++c ) {
 
     if( game->firstPlayer[ c ] == 0
-	|| game->firstPlayer[ c ] > game->numPlayers ) {
+  || game->firstPlayer[ c ] > game->numPlayers ) {
 
       fprintf( stderr, "invalid first player %"PRIu8" on round %d\n",
-	      game->firstPlayer[ c ], c + 1 );
+        game->firstPlayer[ c ], c + 1 );
       free( game );
       return NULL;
     }
@@ -324,7 +324,7 @@ Game *readGame( FILE *file )
   if( game->numHoleCards == 0 || game->numHoleCards > MAX_HOLE_CARDS ) {
 
     fprintf( stderr, "invalid number of hole cards: %"PRIu8"\n",
-	     game->numHoleCards );
+       game->numHoleCards );
     free( game );
     return NULL;
   }
@@ -332,7 +332,7 @@ Game *readGame( FILE *file )
   if( boardCardsRead < game->numRounds ) {
 
     fprintf( stderr, "only read %"PRIu8" board card numbers, need %"PRIu8"\n",
-	    boardCardsRead, game->numRounds );
+      boardCardsRead, game->numRounds );
     free( game );
     return NULL;
   }
@@ -372,7 +372,7 @@ void printGame( FILE *file, const Game *game )
 
       fprintf( file, "stack =" );
       for( i = 0; i < game->numPlayers; ++i ) {
-	fprintf( file, " %"PRId32, game->stack[ i ] );
+  fprintf( file, " %"PRId32, game->stack[ i ] );
       }
       fprintf( file, "\n" );
 
@@ -400,7 +400,7 @@ void printGame( FILE *file, const Game *game )
 
       fprintf( file, "firstPlayer =" );
       for( i = 0; i < game->numRounds; ++i ) {
-	fprintf( file, " %"PRIu8, game->firstPlayer[ i ] + 1 );
+  fprintf( file, " %"PRIu8, game->firstPlayer[ i ] + 1 );
       }
       fprintf( file, "\n" );
 
@@ -413,7 +413,7 @@ void printGame( FILE *file, const Game *game )
 
       fprintf( file, "maxRaises =" );
       for( i = 0; i < game->numRounds; ++i ) {
-	fprintf( file, " %"PRIu8, game->maxRaises[ i ] );
+  fprintf( file, " %"PRIu8, game->maxRaises[ i ] );
       }
       fprintf( file, "\n" );
 
@@ -464,7 +464,7 @@ uint8_t sumBoardCards( const Game *game, const uint8_t round )
 }
 
 static uint8_t nextPlayer( const Game *game, const State *state,
-			   const uint8_t curPlayer )
+         const uint8_t curPlayer )
 {
   uint8_t n;
 
@@ -472,7 +472,7 @@ static uint8_t nextPlayer( const Game *game, const State *state,
   do {
     n = ( n + 1 ) % game->numPlayers;
   } while( state->playerFolded[ n ]
-	   || state->spent[ n ] >= game->stack[ n ] );
+     || state->spent[ n ] >= game->stack[ n ] );
 
   return n;
 }
@@ -482,13 +482,13 @@ uint8_t currentPlayer( const Game *game, const State *state )
   /* if action has already been made, compute next player from last player */
   if( state->numActions[ state->round ] ) {
     return nextPlayer( game, state, state->actingPlayer[ state->round ]
-		       [ state->numActions[ state->round ] - 1 ] );
+           [ state->numActions[ state->round ] - 1 ] );
   }
 
   /* first player in a round is determined by the game and round
      use nextPlayer() because firstPlayer[round] might be unable to act */
   return nextPlayer( game, state, game->firstPlayer[ state->round ]
-		     + game->numPlayers - 1 );
+         + game->numPlayers - 1 );
 }
 
 uint8_t numRaises( const State *state )
@@ -535,9 +535,9 @@ uint8_t numCalled( const Game *game, const State *state )
       /* player initiated the bet, so they've called it */
 
       if( state->spent[ p ] < game->stack[ p ] ) {
-	/* player is not all-in, so they're still acting */
+  /* player is not all-in, so they're still acting */
 
-	++ret;
+  ++ret;
       }
 
       /* this is the start of the current bet, so we're finished */
@@ -545,9 +545,9 @@ uint8_t numCalled( const Game *game, const State *state )
     } else if( state->action[ state->round ][ i - 1 ].type == a_call ) {
 
       if( state->spent[ p ] < game->stack[ p ] ) {
-	/* player is not all-in, so they're still acting */
+  /* player is not all-in, so they're still acting */
 
-	++ret;
+  ++ret;
       }
     }
   }
@@ -578,7 +578,7 @@ uint8_t numActingPlayers( const Game *game, const State *state )
   ret = 0;
   for( p = 0; p < game->numPlayers; ++p ) {
     if( state->playerFolded[ p ] == 0
-	&& state->spent[ p ] < game->stack[ p ] ) {
+  && state->spent[ p ] < game->stack[ p ] ) {
       ++ret;
     }
   }
@@ -607,7 +607,7 @@ void initState( const Game *game, const uint32_t handId, State *state )
 
     if( state->maxSpent ) {
       /* we'll have to call the big blind and then raise by that
-	 amount, so the minimum raise-to is 2*maximum blinds */
+   amount, so the minimum raise-to is 2*maximum blinds */
 
       state->minNoLimitRaiseTo = state->maxSpent * 2;
     } else {
@@ -693,7 +693,7 @@ void dealCards( const Game *game, rng_state_t *rng, State *state )
 /* check whether some portions of a state are equal,
    common to both statesEqual and matchStatesEqual */
 static int statesEqualCommon( const Game *game, const State *a,
-			      const State *b )
+            const State *b )
 {
   int r, i, t;
 
@@ -716,10 +716,10 @@ static int statesEqualCommon( const Game *game, const State *a,
     for( i = 0; i < a->numActions[ r ]; ++i ) {
 
       if( a->action[ r ][ i ].type != b->action[ r ][ i ].type ) {
-	return 0;
+  return 0;
       }
       if( a->action[ r ][ i ].size != b->action[ r ][ i ].size ) {
-	return 0;
+  return 0;
       }
     }
   }
@@ -754,7 +754,7 @@ int statesEqual( const Game *game, const State *a, const State *b )
 
     for( i = 0; i < game->numHoleCards; ++i ) {
       if( a->holeCards[ p ][ i ] != b->holeCards[ p ][ i ] ) {
-	return 0;
+  return 0;
       }
     }
   }
@@ -763,7 +763,7 @@ int statesEqual( const Game *game, const State *a, const State *b )
 }
 
 int matchStatesEqual( const Game *game, const MatchState *a,
-		      const MatchState *b )
+          const MatchState *b )
 {
   int p, i;
 
@@ -787,7 +787,7 @@ int matchStatesEqual( const Game *game, const MatchState *a,
 }
 
 int raiseIsValid( const Game *game, const State *curState,
-		  int32_t *minSize, int32_t *maxSize )
+      int32_t *minSize, int32_t *maxSize )
 {
   int p;
 
@@ -844,8 +844,18 @@ int raiseIsValid( const Game *game, const State *curState,
   return 1;
 }
 
+int anyRaises(const State *curState) {
+  uint8_t numActions = curState->numActions[ curState->round ];
+  for (uint8_t i = 0; i < numActions; i++) {
+    if (curState->action[ curState->round ][ i ].type == a_raise) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
 int isValidAction( const Game *game, const State *curState,
-		   const int tryFixing, Action *action )
+       const int tryFixing, Action *action )
 {
   int min, max, p;
 
@@ -867,35 +877,37 @@ int isValidAction( const Game *game, const State *curState,
       /* no limit games have a size */
 
       if( action->size < min ) {
-	/* bet size is too small */
+  /* bet size is too small */
 
-	if( !tryFixing ) {
+  if( !tryFixing ) {
 
-	  return 0;
-	}
-	fprintf( stderr, "WARNING: raise of %d increased to %d\n",
-		 action->size, min );
-	action->size = min;
+    return 0;
+  }
+  fprintf( stderr, "WARNING: raise of %d increased to %d\n",
+     action->size, min );
+  action->size = min;
       } else if( action->size > max ) {
-	/* bet size is too big */
+  /* bet size is too big */
 
-	if( !tryFixing ) {
+  if( !tryFixing ) {
 
-	  return 0;
-	}
-	fprintf( stderr, "WARNING: raise of %d decreased to %d\n",
-		 action->size, max );
-	action->size = max;
+    return 0;
+  }
+  fprintf( stderr, "WARNING: raise of %d decreased to %d\n",
+     action->size, max );
+  action->size = max;
       }
     } else {
 
     }
   } else if( action->type == a_fold ) {
+    if (curState->round != 0 && !anyRaises(curState)) {
+      return 0;
+    }
 
     if( curState->spent[ p ] == curState->maxSpent
-	|| curState->spent[ p ] == game->stack[ p ] ) {
+  || curState->spent[ p ] == game->stack[ p ] ) {
       /* player has already called all bets, or is all-in */
-
       return 0;
     }
 
@@ -956,24 +968,24 @@ void doAction( const Game *game, const Action *action, State *state )
 
       /* next raise must call this bet, and raise by at least this much */
       if( action->size + action->size - state->maxSpent
-	  > state->minNoLimitRaiseTo ) {
+    > state->minNoLimitRaiseTo ) {
 
-	state->minNoLimitRaiseTo
-	  = action->size + action->size - state->maxSpent;
+  state->minNoLimitRaiseTo
+    = action->size + action->size - state->maxSpent;
       }
       state->maxSpent = action->size;
     } else {
       /* limit betting uses a fixed amount on top of current bet size */
 
       if( state->maxSpent + game->raiseSize[ state->round ]
-	  > game->stack[ p ] ) {
-	/* raise puts player all-in */
+    > game->stack[ p ] ) {
+  /* raise puts player all-in */
 
-	state->maxSpent = game->stack[ p ];
+  state->maxSpent = game->stack[ p ];
       } else {
-	/* player raises by the normal limit size */
+  /* player raises by the normal limit size */
 
-	state->maxSpent += game->raiseSize[ state->round ];
+  state->maxSpent += game->raiseSize[ state->round ];
       }
     }
 
@@ -997,26 +1009,26 @@ void doAction( const Game *game, const Action *action, State *state )
       /* there are at least 2 acting players */
 
       if( state->round + 1 < game->numRounds ) {
-	/* active players move onto next round */
+  /* active players move onto next round */
 
-	++state->round;
+  ++state->round;
 
-	/* minimum raise-by is reset to minimum of big blind or 1 chip */
-	state->minNoLimitRaiseTo = 1;
-	for( p = 0; p < game->numPlayers; ++p ) {
+  /* minimum raise-by is reset to minimum of big blind or 1 chip */
+  state->minNoLimitRaiseTo = 1;
+  for( p = 0; p < game->numPlayers; ++p ) {
 
-	  if( game->blind[ p ] > state->minNoLimitRaiseTo ) {
+    if( game->blind[ p ] > state->minNoLimitRaiseTo ) {
 
-	    state->minNoLimitRaiseTo = game->blind[ p ];
-	  }
-	}
+      state->minNoLimitRaiseTo = game->blind[ p ];
+    }
+  }
 
-	/* we finished at least one round, so raise-to = raise-by + maxSpent */
-	state->minNoLimitRaiseTo += state->maxSpent;
+  /* we finished at least one round, so raise-to = raise-by + maxSpent */
+  state->minNoLimitRaiseTo += state->maxSpent;
       } else {
-	/* no more betting rounds, so we're totally finished */
+  /* no more betting rounds, so we're totally finished */
 
-	state->finished = 1;
+  state->finished = 1;
       }
     } else {
       /* not enough players for more betting, but still need a showdown */
@@ -1028,7 +1040,7 @@ void doAction( const Game *game, const Action *action, State *state )
 }
 
 int rankHand( const Game *game, const State *state,
-	      const uint8_t player )
+        const uint8_t player )
 {
   int i;
 
@@ -1043,20 +1055,20 @@ int rankHand( const Game *game, const State *state,
   for( i = 0; i < game->numHoleCards; ++i ) {
 
     addCardToCardset( &c, suitOfCard( state->holeCards[ player ][ i ] ),
-		      rankOfCard( state->holeCards[ player ][ i ] ) );
+          rankOfCard( state->holeCards[ player ][ i ] ) );
   }
 
   for( i = 0; i < sumBoardCards( game, state->round ); ++i ) {
 
     addCardToCardset( &c, suitOfCard( state->boardCards[ i ] ),
-		      rankOfCard( state->boardCards[ i ] ) );
+          rankOfCard( state->boardCards[ i ] ) );
   }
 
   return rankCardset( c );
 }
 
 double valueOfState( const Game *game, const State *state,
-		     const uint8_t player )
+         const uint8_t player )
 {
   double value;
   int p, numPlayers, playerIdx, numWinners, newNumPlayers;
@@ -1102,7 +1114,7 @@ double valueOfState( const Game *game, const State *state,
       /* p is participating in a showdown */
 
       if( p == player ) {
-	playerIdx = numPlayers;
+  playerIdx = numPlayers;
       }
       rank[ numPlayers ] = rankHand( game, state, p );
     }
@@ -1125,18 +1137,18 @@ double valueOfState( const Game *game, const State *state,
       assert( spent[ p ] > 0 );
 
       if( spent[ p ] < size ) {
-	size = spent[ p ];
+  size = spent[ p ];
       }
 
       if( rank[ p ] > winRank ) {
-	/* new largest rank - only one player with this rank so far */
+  /* new largest rank - only one player with this rank so far */
 
-	winRank = rank[ p ];
-	numWinners = 1;
+  winRank = rank[ p ];
+  numWinners = 1;
       } else if( rank[ p ] == winRank ) {
-	/* another player with highest rank */
+  /* another player with highest rank */
 
-	++numWinners;
+  ++numWinners;
       }
     }
 
@@ -1144,7 +1156,7 @@ double valueOfState( const Game *game, const State *state,
       /* player has spent size, and splits pot with other winners */
 
       value += (double)( size * ( numPlayers - numWinners ) )
-	/ (double)numWinners;
+  / (double)numWinners;
     } else {
       /* player loses this pot */
 
@@ -1157,28 +1169,28 @@ double valueOfState( const Game *game, const State *state,
 
       spent[ p ] -= size;
       if( spent[ p ] == 0 ) {
-	/* player p is not participating in next side pot */
+  /* player p is not participating in next side pot */
 
-	if( p == playerIdx ) {
-	  /* p is the player of interest, so we're done */
+  if( p == playerIdx ) {
+    /* p is the player of interest, so we're done */
 
-	  return value;
-	}
+    return value;
+  }
 
-	continue;
+  continue;
       }
 
       if( p == playerIdx ) {
-	/* p is the player of interest, so note the new index */
+  /* p is the player of interest, so note the new index */
 
-	playerIdx = newNumPlayers;
+  playerIdx = newNumPlayers;
       }
 
       if( p != newNumPlayers ) {
-	/* put entry p into new position */
+  /* put entry p into new position */
 
-	spent[ newNumPlayers ] = spent[ p ];
-	rank[ newNumPlayers ] = rank[ p ];
+  spent[ newNumPlayers ] = spent[ p ];
+  rank[ newNumPlayers ] = rank[ p ];
       }
       ++newNumPlayers;
     }
@@ -1233,31 +1245,65 @@ static int readBetting( const char *string, const Game *game, State *state )
    returns number of characters printed to string, or -1 on failure
    DOES NOT COUNT FINAL 0 TERMINATOR IN THIS COUNT!!! */
 static int printBetting( const Game *game, const State *state,
-			 const int maxLen, char *string )
+       const int maxLen, char *string )
 {
   int i, a, c, r;
 
   c = 0;
-  int pot_size = 150;
-  State *currState = malloc(sizeof(State));
-  initState(game, 0, currState);
-  int spent[ MAX_PLAYERS ] = { 100, 50 };
   for( i = 0; i <= state->round; ++i ) {
-    int curr = 0;
-    if (i == 0) {
-      curr = 1;
-      string[ c ] = '|';
-      ++c;
-      string[ c ] = 'p';
-      ++c;
-      string[ c ] = '|';
-      ++c;
-    }
+
     /* print state separator */
     if( i != 0 ) {
 
       if( c >= maxLen ) {
-	return -1;
+  return -1;
+      }
+      string[ c ] = '/';
+      ++c;
+    }
+
+    /* print betting for round */
+    for( a = 0; a < state->numActions[ i ]; ++a ) {
+
+      r = printAction( game, &state->action[ i ][ a ],
+           maxLen - c, &string[ c ] );
+      if( r < 0 ) {
+  return -1;
+      }
+      c += r;
+    }
+  }
+
+  if( c >= maxLen ) {
+    return -1;
+  }
+  string[ c ] = 0;
+
+  return c;
+}
+
+/* print actions to a string
+   returns number of characters printed to string, or -1 on failure
+   DOES NOT COUNT FINAL 0 TERMINATOR IN THIS COUNT!!! */
+static int printBettingPluribus( const Game *game, const State *state,
+       const int maxLen, char *string )
+{
+  int i, a, c, r;
+
+  c = 0;
+  State *currState = malloc(sizeof(State));
+  initState(game, 0, currState);
+  int flop_active_players = game->numPlayers;
+  for( a = 0; a < state->numActions[ 0 ]; ++a ) {
+    Action *action = &state->action[ 0 ][ a ];
+    if ( action->type == a_fold) {
+      flop_active_players -= 1;
+    }
+  }
+  for(i = 0; i <= state->round; ++i ) {
+    if( i != 0 ) {
+      if( c >= maxLen ) {
+  return -1;
       }
       string[ c ] = '|';
       ++c;
@@ -1273,50 +1319,56 @@ static int printBetting( const Game *game, const State *state,
       ++c;
     }
 
+    if (i == 1) {
+      char flop_active_players_str[24];
+      sprintf(flop_active_players_str, "%d", flop_active_players);
+      string[ c ] = flop_active_players_str[0];
+      ++c;
+      string[ c ] = '|';
+      ++c;
+    }
+
     /* print betting for round */
     for( a = 0; a < state->numActions[ i ]; ++a ) {
-      int opponent = 1 - curr;
       Action *action = &state->action[ i ][ a ];
 
-      // r = printAction( game, &state->action[ i ][ a ],
-      //      maxLen - c, &string[ c ] );
-
       int r = 0;
-      if (action->type == a_fold) {
-        string[ c ] = 'f';
-        ++r;
-      } else if (action->type == a_call) {
-        string[ c ] = 'c';
-        ++r;
-      } else if (action->type == a_raise) {
-        string[ c ] = 'r';
-        ++c;
-        int32_t pot_size = 0;
-        for (int i = 0; i < MAX_PLAYERS; i++) {
-          pot_size += currState->spent[i];
-        }
-        uint8_t player = currentPlayer( game, currState );
-        int amount_to_call = currState->maxSpent - currState->spent[ player ];
-        pot_size += amount_to_call;
-        int pot_raise_size = pot_size + ( currState->spent[ player ] + amount_to_call );
-        float raise_size = 1.0 * (action->size) / (pot_raise_size);
-        if (raise_size > 0.5) {
-          string[ c ] = '1';
+      if (i != 0) {
+        if (action->type == a_fold) {
+          string[ c ] = 'f';
           ++r;
-          // r += snprintf( &string[ c ], maxLen - c, "%1.f", raise_size );
-        } else {
-          string[ c ] = '0'; c++;
-          string[ c ] = '.'; c++;
-          string[ c ] = '5'; c++;
-        }
+        } else if (action->type == a_call) {
+          string[ c ] = 'c';
+          ++r;
+        } else if (action->type == a_raise) {
+          string[ c ] = 'r';
+          ++c;
+          int32_t pot_size = 0;
+          for( int p = 0; p < game->numPlayers; ++p ) {
+            pot_size += currState->spent[ p ];
+          }
+          uint8_t player = currentPlayer( game, currState );
+          int32_t amount_to_call = currState->maxSpent - currState->spent[ player ];
+          pot_size += amount_to_call;
+          int32_t raise_size = action->size - amount_to_call - currState->spent[ player ];
+          float raise_frac = (1.0 * raise_size) / (pot_size);
+          if (raise_frac > (0.6)) {
+            string[ c ] = '1';
+            ++r;
+          } else {
+            string[ c ] = '0'; c++;
+            string[ c ] = '.'; c++;
+            string[ c ] = '5'; c++;
+          }
 
+        }
+        if( r < 0 ) {
+          return -1;
+        }
+        c += r;
       }
-      if( r < 0 ) {
-        return -1;
-      }
-      c += r;
       doAction(game, action, currState);
-      if (a < state->numActions[ i ] - 1) {
+      if (i != 0 && a < state->numActions[ i ] - 1) {
         string[ c ] = ',';
         ++c;
       }
@@ -1332,7 +1384,7 @@ static int printBetting( const Game *game, const State *state,
 }
 
 static int readHoleCards( const char *string, const Game *game,
-			  State *state )
+        State *state )
 {
   int p, c, r, num;
 
@@ -1342,12 +1394,12 @@ static int readHoleCards( const char *string, const Game *game,
     /* check for player separator '|' */
     if( p != 0 ) {
       if( string[ c ] == '|' ) {
-	++c;
+  ++c;
       }
     }
 
     num = readCards( &string[ c ], game->numHoleCards,
-		     state->holeCards[ p ], &r );
+         state->holeCards[ p ], &r );
     if( num == 0 ) {
       /* no cards for player p */
 
@@ -1365,7 +1417,7 @@ static int readHoleCards( const char *string, const Game *game,
 }
 
 static int printAllHoleCards( const Game *game, const State *state,
-			      const int maxLen, char *string )
+            const int maxLen, char *string )
 {
   int p, c, r;
 
@@ -1376,14 +1428,14 @@ static int printAllHoleCards( const Game *game, const State *state,
     if( p != 0 ) {
 
       if( c >= maxLen ) {
-	return -1;
+  return -1;
       }
       string[ c ] = '|';
       ++c;
     }
 
     r = printCards( game->numHoleCards, state->holeCards[ p ],
-		    maxLen - c, &string[ c ] );
+        maxLen - c, &string[ c ] );
     if( r < 0 ) {
       return -1;
     }
@@ -1399,8 +1451,8 @@ static int printAllHoleCards( const Game *game, const State *state,
 }
 
 static int printPlayerHoleCards( const Game *game, const State *state,
-				 const uint8_t player,
-				 const int maxLen, char *string )
+         const uint8_t player,
+         const int maxLen, char *string )
 {
   int p, c, r;
 
@@ -1411,7 +1463,7 @@ static int printPlayerHoleCards( const Game *game, const State *state,
     if( p != 0 ) {
 
       if( c >= maxLen ) {
-	return -1;
+  return -1;
       }
       string[ c ] = '|';
       ++c;
@@ -1422,20 +1474,20 @@ static int printPlayerHoleCards( const Game *game, const State *state,
           and they didn't fold */
 
       if( !stateFinished( state ) ) {
-	continue;
+  continue;
       }
 
       if( state->playerFolded[ p ] ) {
-	continue;
+  continue;
       }
 
       if( numFolded( game, state ) + 1 == game->numPlayers ) {
-	continue;
+  continue;
       }
     }
 
     r = printCards( game->numHoleCards, state->holeCards[ p ],
-		    maxLen - c, &string[ c ] );
+        maxLen - c, &string[ c ] );
     if( r < 0 ) {
       return -1;
     }
@@ -1451,7 +1503,7 @@ static int printPlayerHoleCards( const Game *game, const State *state,
 }
 
 static int readBoardCards( const char *string, const Game *game,
-			   State *state )
+         State *state )
 {
   int i, c, r;
 
@@ -1461,13 +1513,13 @@ static int readBoardCards( const char *string, const Game *game,
     /* check for round separator '/' */
     if( i != 0 ) {
       if( string[ c ] == '/' ) {
-	++c;
+  ++c;
       }
     }
 
     if( readCards( &string[ c ], game->numBoardCards[ i ],
-		   &state->boardCards[ bcStart( game, i ) ], &r )
-	!= game->numBoardCards[ i ] ) {
+       &state->boardCards[ bcStart( game, i ) ], &r )
+  != game->numBoardCards[ i ] ) {
       /* couldn't read the required number of cards - bad! */
 
       return -1;
@@ -1479,7 +1531,7 @@ static int readBoardCards( const char *string, const Game *game,
 }
 
 static int printBoardCards( const Game *game, const State *state,
-			    const int maxLen, char *string )
+          const int maxLen, char *string )
 {
   int i, c, r;
 
@@ -1490,15 +1542,15 @@ static int printBoardCards( const Game *game, const State *state,
     if( i != 0 ) {
 
       if( c >= maxLen ) {
-	return -1;
+  return -1;
       }
       string[ c ] = '/';
       ++c;
     }
 
     r = printCards( game->numBoardCards[ i ],
-		    &state->boardCards[ bcStart( game, i ) ],
-		    maxLen - c, &string[ c ] );
+        &state->boardCards[ bcStart( game, i ) ],
+        maxLen - c, &string[ c ] );
     if( r < 0 ) {
       return -1;
     }
@@ -1515,7 +1567,7 @@ static int printBoardCards( const Game *game, const State *state,
 
 
 static int readStateCommon( const char *string, const Game *game,
-			    State *state )
+          State *state )
 {
   uint32_t handId;
   int c, r;
@@ -1582,13 +1634,13 @@ int readState( const char *string, const Game *game, State *state )
 }
 
 int readMatchState( const char *string, const Game *game,
-		    MatchState *state )
+        MatchState *state )
 {
   int c, r;
 
   /* HEADER = MATCHSTATE:player */
   if( sscanf( string, "MATCHSTATE:%"SCNu8"%n",
-	      &state->viewingPlayer, &c ) < 1
+        &state->viewingPlayer, &c ) < 1
       || state->viewingPlayer >= game->numPlayers )  {
     return -1;
   }
@@ -1604,7 +1656,7 @@ int readMatchState( const char *string, const Game *game,
 }
 
 static int printStateCommon( const Game *game, const State *state,
-			     const int maxLen, char *string )
+           const int maxLen, char *string )
 {
   int c, r;
 
@@ -1612,11 +1664,11 @@ static int printStateCommon( const Game *game, const State *state,
   c = 0;
 
   /* HEADER:handId: */
-  // r = snprintf( &string[ c ], maxLen - c, ":%"PRIu32":", state->handId );
-  // if( r < 0 ) {
-  //   return -1;
-  // }
-  // c += r;
+  r = snprintf( &string[ c ], maxLen - c, ":%"PRIu32":", state->handId );
+  if( r < 0 ) {
+    return -1;
+  }
+  c += r;
 
   /* HEADER:handId:betting */
   r = printBetting( game, state, maxLen - c, &string[ c ] );
@@ -1629,25 +1681,25 @@ static int printStateCommon( const Game *game, const State *state,
   if( c >= maxLen ) {
     return -1;
   }
-  // string[ c ] = ':';
-  // ++c;
+  string[ c ] = ':';
+  ++c;
 
   return c;
 }
 
 int printState( const Game *game, const State *state,
-		const int maxLen, char *string )
+    const int maxLen, char *string )
 {
   int c, r;
 
   c = 0;
 
   /* STATE */
-  // r = snprintf( &string[ c ], maxLen - c, "STATE" );
-  // if( r < 0 ) {
-  //   return -1;
-  // }
-  // c += r;
+  r = snprintf( &string[ c ], maxLen - c, "STATE" );
+  if( r < 0 ) {
+    return -1;
+  }
+  c += r;
 
   /* STATE:handId:betting: */
   r = printStateCommon( game, state, maxLen - c, &string[ c ] );
@@ -1656,19 +1708,64 @@ int printState( const Game *game, const State *state,
   }
   c += r;
 
-  // /* STATE:handId:betting:holeCards */
-  // r = printAllHoleCards( game, state, maxLen - c, &string[ c ] );
-  // if( r < 0 ) {
-  //   return -1;
-  // }
-  // c += r;
+  /* STATE:handId:betting:holeCards */
+  r = printAllHoleCards( game, state, maxLen - c, &string[ c ] );
+  if( r < 0 ) {
+    return -1;
+  }
+  c += r;
 
-  // /* STATE:handId:betting:holeCards boardCards */
-  // r = printBoardCards( game, state, maxLen - c, &string[ c ] );
-  // if( r < 0 ) {
-  //   return -1;
-  // }
-  // c += r;
+  /* STATE:handId:betting:holeCards boardCards */
+  r = printBoardCards( game, state, maxLen - c, &string[ c ] );
+  if( r < 0 ) {
+    return -1;
+  }
+  c += r;
+
+  if( c >= maxLen ) {
+    return -1;
+  }
+  string[ c ] = 0;
+
+  return c;
+}
+
+static int printStateCommonPluribus( const Game *game, const State *state,
+           const int maxLen, char *string )
+{
+  int c, r;
+
+  /* HEADER */
+  c = 0;
+
+  /* HEADER:handId:betting */
+  r = printBettingPluribus( game, state, maxLen - c, &string[ c ] );
+  if( r < 0 ) {
+    return -1;
+  }
+  c += r;
+
+  /* HEADER:handId:betting: */
+  if( c >= maxLen ) {
+    return -1;
+  }
+
+  return c;
+}
+
+int printStatePluribus( const Game *game, const State *state,
+    const int maxLen, char *string )
+{
+  int c, r;
+
+  c = 0;
+
+  /* STATE:handId:betting: */
+  r = printStateCommonPluribus( game, state, maxLen - c, &string[ c ] );
+  if( r < 0 ) {
+    return -1;
+  }
+  c += r;
 
   if( c >= maxLen ) {
     return -1;
@@ -1679,7 +1776,7 @@ int printState( const Game *game, const State *state,
 }
 
 int printMatchState( const Game *game, const MatchState *state,
-		     const int maxLen, char *string )
+         const int maxLen, char *string )
 {
   int c, r;
 
@@ -1687,7 +1784,7 @@ int printMatchState( const Game *game, const MatchState *state,
 
   /* MATCHSTATE:player */
   r = snprintf( &string[ c ], maxLen - c, "MATCHSTATE:%"PRIu8,
-		state->viewingPlayer );
+    state->viewingPlayer );
   if( r < 0 ) {
     return -1;
   }
@@ -1702,7 +1799,7 @@ int printMatchState( const Game *game, const MatchState *state,
 
   /* MATCHSTATE:player:handId:betting:holeCards */
   r = printPlayerHoleCards( game, &state->state, state->viewingPlayer,
-			    maxLen - c, &string[ c ] );
+          maxLen - c, &string[ c ] );
   if( r < 0 ) {
     return -1;
   }
@@ -1750,7 +1847,7 @@ int readAction( const char *string, const Game *game, Action *action )
 }
 
 int printAction( const Game *game, const Action *action,
-		 const int maxLen, char *string )
+     const int maxLen, char *string )
 {
   int c, r;
 
@@ -1808,7 +1905,7 @@ int readCard( const char *string, uint8_t *card )
 }
 
 int readCards( const char *string, const int maxCards,
-	       uint8_t *cards, int *charsConsumed )
+         uint8_t *cards, int *charsConsumed )
 {
   int i, c, r;
 
@@ -1840,7 +1937,7 @@ int printCard( const uint8_t card, const int maxLen, char *string  )
 }
 
 int printCards( const int numCards, const uint8_t *cards,
-		const int maxLen, char *string )
+    const int maxLen, char *string )
 {
   int i, c, r;
 

@@ -60,38 +60,43 @@ InfoSetNode2p::~InfoSetNode2p( )
 {
 }
 
-TerminalNode3p::TerminalNode3p( const uint32_t new_pot_size,
-				const uint32_t new_money_spent[ MAX_PURE_CFR_PLAYERS ],
+TerminalNode6p::TerminalNode6p(
+				const uint16_t new_money_spent[ MAX_PURE_CFR_PLAYERS ],
 				const leaf_type_t new_leaf_type )
   : BettingNode( ),
-    pot_size( new_pot_size ),
     leaf_type( new_leaf_type )
 {
   memcpy( money_spent, new_money_spent, MAX_PURE_CFR_PLAYERS * sizeof( money_spent[ 0 ] ) );
 }
 
-TerminalNode3p::~TerminalNode3p( )
+TerminalNode6p::~TerminalNode6p( )
 {
 }
 
-int TerminalNode3p::evaluate( const hand_t &hand, const int position ) const
+int TerminalNode6p::evaluate( const hand_t &hand, const int position ) const
 {
-  return ( pot_size / hand.eval.pot_frac_recip[ position ][ leaf_type ] )
+  uint16_t pot_size = 0;
+  for (int i = 0; i < MAX_PURE_CFR_PLAYERS; i++) {
+    pot_size += money_spent[i];
+  }
+  // printf("position: %d, pot_frac_recip: %d\t", position, hand.eval.pot_frac_recip[ position ][ leaf_type ]);
+  auto pot_share = ( pot_size / hand.eval.pot_frac_recip[ position ][ leaf_type ] )
     - money_spent[ position ];
+  return pot_share;
 }
 
-InfoSetNode3p::InfoSetNode3p( const int64_t new_soln_idx,
+InfoSetNode6p::InfoSetNode6p( const int64_t new_soln_idx,
 			      const int new_num_choices,
 			      const int8_t new_player,
 			      const int8_t new_round,
 			      const int8_t new_player_folded
 			      [ MAX_PURE_CFR_PLAYERS ],
 			      const BettingNode *new_child,
-			      const uint32_t new_pot_size,
-			      const uint32_t new_money_spent
+			      const uint16_t new_money_spent
 			      [ MAX_PURE_CFR_PLAYERS ],
-			      const leaf_type_t new_leaf_type )
-  : TerminalNode3p( new_pot_size, new_money_spent, new_leaf_type ),
+			      const leaf_type_t new_leaf_type,
+            uint16_t new_action_mask )
+  : TerminalNode6p( new_money_spent, new_leaf_type ),
     soln_idx( new_soln_idx ),
     num_choices( new_num_choices ),
     player( new_player ),
@@ -99,45 +104,34 @@ InfoSetNode3p::InfoSetNode3p( const int64_t new_soln_idx,
     child( new_child )
 {
   memcpy( player_folded, new_player_folded, MAX_PURE_CFR_PLAYERS * sizeof( player_folded[ 0 ] ) );
+  action_mask = new_action_mask;
 }
 
-InfoSetNode3p::~InfoSetNode3p( )
+InfoSetNode6p::~InfoSetNode6p( )
 {
 }
 
-void get_term_values_3p( const State &state,
+void get_term_values_6p( const State &state,
 			 const Game *game,
-			 uint32_t &pot_size,
-			 uint32_t money_spent[ MAX_PURE_CFR_PLAYERS ],
-			 leaf_type_t &leaf_type )
+			 leaf_type_t *leaf_type )
 {
+  int8_t leaf_type_int = 63;
   for( int p = 0; p < game->numPlayers; ++p ) {
-    money_spent[ p ] = state.spent[ p ];
-    pot_size += money_spent[ p ];
+    if (state.playerFolded[ p ]) {
+      leaf_type_int &= ~(1 << p);
+      // printf("playerFolded: %d\n", p);
+    }
   }
+  // printf("leaf_type_int: %d\n", leaf_type_int);
 
-  /* Leaf type, which is 3p-specific */
-  if( state.playerFolded[ 1 ] && state.playerFolded[ 2 ] ) {
-    leaf_type = LEAF_P0;
-  } else if( state.playerFolded[ 0 ] && state.playerFolded[ 2 ] ) {
-    leaf_type = LEAF_P1;
-  } else if( state.playerFolded[ 0 ] && state.playerFolded [ 1 ] ) {
-    leaf_type = LEAF_P2;
-  } else if( state.playerFolded[ 2 ] ) {
-    leaf_type = LEAF_P0_P1;
-  } else if( state.playerFolded[ 1 ] ) {
-    leaf_type = LEAF_P0_P2;
-  } else if( state.playerFolded[ 0 ] ) {
-    leaf_type = LEAF_P1_P2;
-  } else {
-    leaf_type = LEAF_P0_P1_P2;
-  }
+  *leaf_type = static_cast<leaf_type_t>(leaf_type_int);
 }
 
 BettingNode *init_betting_tree_r( State &state,
 				  const Game *game,
 				  const ActionAbstraction *action_abs,
-				  size_t num_entries_per_bucket[ MAX_ROUNDS ] )
+				  size_t num_entries_per_bucket[ MAX_ROUNDS ],
+          std::map<uint16_t, BettingNode*> (*roots) [ MAX_ROUNDS ][ MAX_ABSTRACT_ACTIONS ] )
 {
   BettingNode *node;
   
@@ -166,12 +160,14 @@ BettingNode *init_betting_tree_r( State &state,
       break;
     }
 
-    case 3: {
-      uint32_t pot_size;
-      uint32_t money_spent[ MAX_PURE_CFR_PLAYERS ];
+    case 6: {
+      uint16_t money_spent[ MAX_PURE_CFR_PLAYERS ];
+      for (int p = 0; p < MAX_PURE_CFR_PLAYERS; p++) {
+        money_spent[ p ] = state.spent[ p ];
+      }
       leaf_type_t leaf_type;
-      get_term_values_3p( state, game, pot_size, money_spent, leaf_type );
-      node = new TerminalNode3p( pot_size, money_spent, leaf_type );
+      get_term_values_6p( state, game, &leaf_type );
+      node = new TerminalNode6p( money_spent, leaf_type );
       break;
     }
     
@@ -186,7 +182,18 @@ BettingNode *init_betting_tree_r( State &state,
 
   /* Choice node.  First, compute number of different allowable actions */
   Action actions[ MAX_ABSTRACT_ACTIONS ];
-  int num_choices = action_abs->get_actions( game, state, actions );
+  uint16_t action_mask = 0;
+  // int num_folds = 0;
+  // for (int i = 0; i < state.numActions[ state.round ]; i++) {
+  //   if (state.action[ state.round ][i].type == 0) {
+  //     num_folds++;
+  //   }
+  // }
+  // if (state.round == 0 && num_folds == 2 && state.numActions[ state.round ] == 2) {
+  //   printf("action_mask: %d\n", action_mask);
+  // }
+  int num_choices = action_abs->get_actions( game, state, actions, &action_mask );
+  // printf("action_mask: %d\n", action_mask);
 
   /* Next, grab the index for this node into the regrets and avg_strategy */
   int64_t soln_idx = num_entries_per_bucket[ state.round ];
@@ -197,12 +204,35 @@ BettingNode *init_betting_tree_r( State &state,
   /* Recurse to create children */
   BettingNode *first_child = NULL;
   BettingNode *last_child = NULL;
-  for( int a = 0; a < num_choices; ++a ) {
 
+
+  // assert(num_folds < 5);
+
+  for( int a = 0; a < num_choices; ++a ) {
+    BettingNode *child;
     State new_state( state );
     doAction( game, &actions[ a ], &new_state );
-    BettingNode *child = init_betting_tree_r( new_state, game, action_abs,
-					      num_entries_per_bucket );
+    // if (new_state.round != state.round && first_child == NULL) {
+    //   Action new_actions[ MAX_ABSTRACT_ACTIONS ];
+    //   int new_num_choices = action_abs->get_actions( game, new_state, new_actions );
+    //   uint16_t folded = 0;
+    //   for (int i = 0; i < MAX_PURE_CFR_PLAYERS; i++) {
+    //     if (new_state.playerFolded[ i ]) {
+    //       folded |= (1 << i);
+    //     }
+    //   }
+    //   if ((*roots)[ new_state.round ][ 0 ][ 0 ] != NULL) {
+    //     child = (*roots)[ new_state.round ][ 0 ][ 0 ];
+    //   } else {
+    //     child = init_betting_tree_r( new_state, game, action_abs,
+    //       num_entries_per_bucket, roots );
+    //     printf("round: %d, new_num_choices: %d, folded: %d\n", new_state.round, new_num_choices, folded);
+    //     (*roots)[ new_state.round ][ 0 ][ 0 ] = child;
+    //   }
+    // } else {
+    child = init_betting_tree_r( new_state, game, action_abs,
+					     num_entries_per_bucket, roots );
+    // }
     if( last_child != NULL ) {
       last_child->set_sibling( child );
     } else {
@@ -226,20 +256,19 @@ BettingNode *init_betting_tree_r( State &state,
 			      state.round, first_child ); 
     break;
 
-  case 3:
+  case 6:
     /* We need some additional values not needed in 2p games */
     int8_t player_folded[ MAX_PURE_CFR_PLAYERS ];
     for( int p = 0; p < game->numPlayers; ++p ) {
       player_folded[ p ] = ( state.playerFolded[ p ] ? 1 : 0 );
     }
-    uint32_t pot_size;
-    uint32_t money_spent[ MAX_PURE_CFR_PLAYERS ];
+    uint16_t money_spent[ MAX_PURE_CFR_PLAYERS ];
     leaf_type_t leaf_type;
-    get_term_values_3p( state, game, pot_size, money_spent, leaf_type );
+    get_term_values_6p( state, game, &leaf_type );
     
-    node = new InfoSetNode3p( soln_idx, num_choices, currentPlayer( game, &state ),
+    node = new InfoSetNode6p( soln_idx, num_choices, currentPlayer( game, &state ),
 			      state.round, player_folded, first_child,
-			      pot_size, money_spent, leaf_type );
+			      money_spent, leaf_type, action_mask );
     break;
 
   default:

@@ -28,6 +28,7 @@ extern "C" {
 #include "pure_cfr_machine.hpp"
 #include "player_module.hpp"
 #include "utility.hpp"
+#include "constants.hpp"
 
 typedef struct {
   int64_t iterations;
@@ -123,8 +124,9 @@ void *thread_iterations( void *thread_args )
     }
 
     /* Run a block of iterations */
+    int64_t num_iterations = args->iterations;
     for( int i = 0; i < ITERATION_BLOCK_SIZE; ++i ) {
-      args->pcm->do_iteration( rng );
+      args->pcm->do_iteration( rng,  num_iterations + i);
     }
     args->iterations += ITERATION_BLOCK_SIZE;
   }
@@ -157,6 +159,8 @@ void run_iterations( Parameters &params, PureCfrMachine &pcm )
     }
     fprintf( stderr, "done!\n\n" );
   }
+
+  pcm.load_phmap();
 
   /* Set up threads */
   worker_thread_args_t thread_args[ params.num_threads ];

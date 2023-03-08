@@ -24,11 +24,14 @@ extern "C" {
 #include "parameters.hpp"
 #include "abstract_game.hpp"
 #include "entries.hpp"
+#include "constants.hpp"
+#include "parallel_hashmap/phmap_dump.h"
+#include <map>
 
 class PlayerModule {
 public:
 
-  PlayerModule( const char *player_file );
+  PlayerModule( const char *player_file, int player_num );
   virtual ~PlayerModule( );
 
   virtual const AbstractGame *get_abstract_game( ) const { return ag; }
@@ -40,7 +43,8 @@ public:
   virtual int get_regrets( State &state,
          int local_regrets
          [ MAX_ABSTRACT_ACTIONS ],
-         int bucket = -1 );
+         int bucket = -1,
+         hash_t *cache = 0);
   virtual Action get_action( State &state );
 
 protected:
@@ -55,9 +59,12 @@ protected:
   Entries *entries[ MAX_ROUNDS ];
   struct stat sb;
   void *dump_start;
+public:
+  std::unordered_map<uint16_t, std::vector<uint16_t>> allowed_actions_cache;
 };
 
 void print_player_file( const Parameters &params,
-			const char *filename_prefix );
+      const char *filename_prefix );
+
 
 #endif

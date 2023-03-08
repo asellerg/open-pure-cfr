@@ -32,23 +32,27 @@ public:
   PureCfrMachine( const Parameters &params );
   ~PureCfrMachine( );
 
-  void do_iteration( rng_state_t &rng );
+  void do_iteration( rng_state_t &rng, int64_t num_iterations );
   
   /* Returns 0 on success, 1 on failure, -1 on warning */
   int write_dump( const char *dump_prefix, const bool do_regrets = true ) const;
   int load_dump( const char *dump_prefix );
+  void load_phmap();
 
 protected:  
   int generate_hand( hand_t &hand, rng_state_t &rng );
   int walk_pure_cfr( const int position,
 		     const BettingNode *cur_node,
 		     const hand_t &hand,
-		     rng_state_t &rng );
+		     rng_state_t &rng,
+         std::vector<int8_t> history,
+         int8_t prev_round,
+         int64_t num_iterations);
 
   AbstractGame ag;
   const bool do_average;
   Entries *regrets[ MAX_ROUNDS ];
-  Entries *avg_strategy[ MAX_ROUNDS ];
+  Entries *avg_strategy[ MAX_PURE_CFR_PLAYERS ][ MAX_ROUNDS ];
   uint deck[52];
 };
 

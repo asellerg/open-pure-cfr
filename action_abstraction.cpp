@@ -35,7 +35,8 @@ NullActionAbstraction::~NullActionAbstraction( )
 int NullActionAbstraction::get_actions( const Game *game,
 					const State &state,
 					Action actions
-					[ MAX_ABSTRACT_ACTIONS ] ) const
+					[ MAX_ABSTRACT_ACTIONS ],
+					uint16_t* action_mask ) const
 {
   int num_actions = 0;
   bool error = false;
@@ -92,7 +93,8 @@ FcpaActionAbstraction::~FcpaActionAbstraction( )
 int FcpaActionAbstraction::get_actions( const Game *game,
 					const State &state,
 					Action actions
-					[ MAX_ABSTRACT_ACTIONS ] ) const
+					[ MAX_ABSTRACT_ACTIONS ],
+					uint16_t* action_mask ) const
 {
   assert( MAX_ABSTRACT_ACTIONS >= 5 );
   
@@ -118,27 +120,30 @@ int FcpaActionAbstraction::get_actions( const Game *game,
 	 * after making the raise.
 	 */
 	int pot_raise_size = pot + ( state.spent[ player ] + amount_to_call );
-	int half_pot_raise_size = int(0.5 * pot_raise_size);
-	if( half_pot_raise_size < max_raise_size ) {
+	int half_pot_raise_size = int(0.5 * pot) + ( state.spent[ player ] + amount_to_call );
+	if( half_pot_raise_size < max_raise_size && !anyRaises(&state)) {
 	  actions[ num_actions ] = action;
 	  actions[ num_actions ].size = half_pot_raise_size;
-	  ++num_actions;	  
+	  ++num_actions;
+	  *action_mask |= (1 << 2);
 	}
 	if( pot_raise_size < max_raise_size ) {
 	  actions[ num_actions ] = action;
 	  actions[ num_actions ].size = pot_raise_size;
-	  ++num_actions;	  
+	  ++num_actions;
+	  *action_mask |= (1 << 3);
 	}
-	/* Now add all-in */
-	// actions[ num_actions ] = action;
-	// actions[ num_actions ].size = max_raise_size;
-	// ++num_actions;
       }
 	
     } else if( isValidAction( game, &state, 0, &action ) ) {
       /* Fold and call */
       actions[ num_actions ] = action;
       ++num_actions;
+      if (action.type == 0) {
+      	*action_mask |= 1;
+      } else {
+      	*action_mask |= (1 << 1);
+      }
     }
   }
 

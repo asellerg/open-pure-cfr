@@ -28,7 +28,8 @@ public:
 
   virtual int get_actions( const Game *game,
 			   const State &state,
-			   Action actions[ MAX_ABSTRACT_ACTIONS ] ) const = 0;
+			   Action actions[ MAX_ABSTRACT_ACTIONS ],
+         uint16_t* action_mask = 0 ) const = 0;
 
 protected:
 };
@@ -45,7 +46,8 @@ public:
 
   virtual int get_actions( const Game *game,
 			   const State &state,
-			   Action actions[ MAX_ABSTRACT_ACTIONS ] ) const;
+			   Action actions[ MAX_ABSTRACT_ACTIONS ],
+         uint16_t* action_mask = 0 ) const;
 
 protected:
 };
@@ -62,7 +64,8 @@ public:
 
   virtual int get_actions( const Game *game,
 			   const State &state,
-			   Action actions[ MAX_ABSTRACT_ACTIONS ] ) const;
+			   Action actions[ MAX_ABSTRACT_ACTIONS ],
+         uint16_t* action_mask = 0 ) const;
 
 protected:
 };

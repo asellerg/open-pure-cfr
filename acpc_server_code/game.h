@@ -215,6 +215,12 @@ int printState( const Game *game, const State *state,
 /* print a state to a string, as viewed by viewingPlayer
    returns the number of characters in string, or -1 on error
    DOES NOT COUNT FINAL 0 TERMINATOR IN THIS COUNT!!! */
+int printStatePluribus( const Game *game, const State *state,
+      const int maxLen, char *string );
+
+/* print a state to a string, as viewed by viewingPlayer
+   returns the number of characters in string, or -1 on error
+   DOES NOT COUNT FINAL 0 TERMINATOR IN THIS COUNT!!! */
 int printMatchState( const Game *game, const MatchState *state,
 		     const int maxLen, char *string );
 
@@ -249,6 +255,8 @@ int printCard( const uint8_t card, const int maxLen, char *string );
    DOES NOT COUNT FINAL 0 TERMINATOR IN THIS COUNT!!! */
 int printCards( const int numCards, const uint8_t *cards,
 		const int maxLen, char *string );
+
+int anyRaises( const State *state);
 
 #define rankOfCard( card ) ((card)/MAX_SUITS)
 #define suitOfCard( card ) ((card)%MAX_SUITS)

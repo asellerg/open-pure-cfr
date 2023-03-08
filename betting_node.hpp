@@ -17,6 +17,7 @@
 /* C / C++ / STL indluces */
 #include <inttypes.h>
 #include <assert.h>
+#include <map>
 
 /* C project_acpc_server indluces */
 extern "C" {
@@ -49,7 +50,9 @@ public:
   virtual void set_sibling( BettingNode *new_sibling ) { sibling = new_sibling; }
 
 protected:
-  BettingNode *sibling; /* NULL if this is the last sibling */  
+  BettingNode *sibling; /* NULL if this is the last sibling */
+public:
+  uint16_t action_mask = 0;
 };
 
 class TerminalNode2p : public BettingNode {
@@ -94,40 +97,39 @@ protected:
   const BettingNode* child;
 };
 
-class TerminalNode3p : public BettingNode {
+class TerminalNode6p : public BettingNode {
 public:
 
-  TerminalNode3p( const uint32_t new_pot_size,
-		  const uint32_t new_money_spent[ MAX_PURE_CFR_PLAYERS ],
+  TerminalNode6p(
+		  const uint16_t new_money_spent[ MAX_PURE_CFR_PLAYERS ],
 		  const leaf_type_t new_leaf_type );
-  virtual ~TerminalNode3p( );
+  virtual ~TerminalNode6p( );
 
   virtual int evaluate( const hand_t &hand, const int position ) const;
 
   virtual const BettingNode *get_child( ) const { return NULL; }
+  const leaf_type_t leaf_type;
 
 protected:
-  const uint32_t pot_size;
-  uint32_t money_spent[ MAX_PURE_CFR_PLAYERS ];
-  const leaf_type_t leaf_type;
+  uint16_t money_spent[ MAX_PURE_CFR_PLAYERS ];
 };
 
-/* InfoSetNode3p derives from TerminalNode3p since we want to terminate tree walks prematurely
+/* InfoSetNode6p derives from TerminalNode6p since we want to terminate tree walks prematurely
  * before reaching a terminal node after the current player folds.
  */
-class InfoSetNode3p : public TerminalNode3p {
+class InfoSetNode6p : public TerminalNode6p {
 public:
 
-  InfoSetNode3p( const int64_t new_soln_idx,
+  InfoSetNode6p( const int64_t new_soln_idx,
 		 const int new_num_choices,
 		 const int8_t new_player,
 		 const int8_t new_round,
 		 const int8_t new_player_folded[ MAX_PURE_CFR_PLAYERS ],
 		 const BettingNode *new_child,
-		 const uint32_t new_pot_size,
-		 const uint32_t new_money_spent[ MAX_PURE_CFR_PLAYERS ],
-		 const leaf_type_t new_leaf_type );
-  virtual ~InfoSetNode3p( );
+		 const uint16_t new_money_spent[ MAX_PURE_CFR_PLAYERS ],
+		 const leaf_type_t new_leaf_type,
+     uint16_t new_action_mask );
+  virtual ~InfoSetNode6p( );
 
   virtual int64_t get_soln_idx( ) const { return soln_idx; }
   virtual int get_num_choices( ) const { return num_choices; }
@@ -150,7 +152,8 @@ protected:
 BettingNode *init_betting_tree_r( State &state,
 				  const Game *game,
 				  const ActionAbstraction *action_abs,
-				  size_t num_entries_per_bucket[ MAX_ROUNDS ] );
+				  size_t num_entries_per_bucket[ MAX_ROUNDS ],
+          std::map<uint16_t, BettingNode*> (*roots) [ MAX_ROUNDS ][ MAX_ABSTRACT_ACTIONS ]);
 
 void destroy_betting_tree_r( const BettingNode *node );
 

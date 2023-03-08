@@ -12,6 +12,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <iostream>
+#include <thread>
+#include <optional>
 
 /* C project-acpc-server includes */
 extern "C" {
@@ -21,57 +23,73 @@ extern "C" {
 #include "constants.hpp"
 #include "player_module.hpp"
 
-static void print_strategy_r( PlayerModule &player_module,
-			      State &state,
-			      const AbstractGame *ag,
-			      const int p,
-			      const int max_round )
+
+hash_t cache;
+auto redis = sw::redis::Redis("unix:///run/redis.sock/2");
+
+
+void print_strategy_r( PlayerModule &player_module,
+      State &state,
+      const int p,
+      const int max_round,
+      sw::redis::Redis &redis)
 {
   if( state.finished || ( state.round >= max_round ) ) {
     /* End of game or we've gone past the rounds we care to print */
     return;
   }
-
+  auto ag = player_module.get_abstract_game();
   /* Get the possible actions */
   Action actions[ MAX_ABSTRACT_ACTIONS ];
-  const int num_choices = ag->action_abs->get_actions( ag->game, state, actions );
+  uint16_t action_mask = 0;
+  const int num_choices = ag->action_abs->get_actions( ag->game, state, actions, &action_mask);
+
+  std::vector<uint16_t> allowed_actions;
+  for (int x = 0; x < MAX_ABSTRACT_ACTIONS; x++) {
+    if (action_mask & (1 << x)) {
+      allowed_actions.push_back(x);
+    }
+  }
+
+  /* Print 'em out */
+  std::unordered_map<int, std::string> action_abbrevs = {{0, "f"}, {1, "c"}, {2, "r0.5"}, {3, "r1"}};
+  std::unordered_map<int, std::string> action_full_name = {{0, "fold"}, {1, "call"}, {2, "raise 0.5"}, {3, "raise 1"}};
     
   if( p == currentPlayer( ag->game, &state ) ) {
     /* Get the state info in a string */
     char state_str[ PATH_LENGTH ];
-    printState( ag->game, &state, PATH_LENGTH, state_str );
-
-    auto redis = sw::redis::Redis("unix:///run/redis.sock/2");
+    printStatePluribus( ag->game, &state, PATH_LENGTH, state_str );
   
     /* Print the player's action probabilities for every possible bucket */
     const int num_buckets = ag->card_abs->num_buckets( ag->game, state );
     for( int bucket = 0; bucket < num_buckets; ++bucket ) {
+      std::unordered_map<std::string, float> local_regrets_dict = {{"fold", 0.}, {"call", 0.}, {"raise 0.5", 0.}, {"raise 1", 0.}};
       std::string key = std::to_string(bucket);
+
       /* Get the regrets */
       int local_regrets[ MAX_ABSTRACT_ACTIONS ];
-      int has_pos_regrets = player_module.get_regrets( state, local_regrets, bucket );
+      int has_pos_regrets = player_module.get_regrets( state, local_regrets, bucket, &cache);
       if (has_pos_regrets == 0) {
         continue;
       }
 
-      /* Print 'em out */
-      std::unordered_map<std::string, float> local_regrets_dict = {{"fold", 0.}, {"call", 0.}, {"raise 0.5", 0.}, {"raise 1", 0}};
-      std::unordered_map<int, std::string> action_abbrevs = {{0, "f"}, {1, "c"}, {2, "r0.5"}, {3, "r1"}};
-      std::unordered_map<int, std::string> action_full_name = {{0, "fold"}, {1, "call"}, {2, "raise 0.5"}, {3, "raise 1"}};
-      key.append(state_str);
-      std::string debug = key;
-      debug.append("\t");
       for( int a = 0; a < num_choices; ++a ) {
-    local_regrets_dict[action_full_name[a]] = local_regrets[a];
-	  char action_str[ PATH_LENGTH ];
-    debug.append(action_full_name[a]);
-    debug.append(":");
-    debug.append(std::to_string(local_regrets[a]));
-    debug.append("\t");
+        auto action = actions[a];
+        std::string action_str = action_full_name[allowed_actions[a]];
+        std::string action_abbrev = action_abbrevs[allowed_actions[a]];
+        local_regrets_dict[action_str] += local_regrets[a];
+      }
+      key.append(state_str);
+      std::vector<sw::redis::OptionalString> vals;
+      std::vector<std::string> ordered_actions = {"fold", "call", "raise 0.5", "raise 1"};
+      redis.hmget(key, {"fold", "call", "raise 0.5", "raise 1"}, std::back_inserter(vals));
+      for (int r = 0; r < vals.size(); r++) {
+        auto val = vals[r];
+        if (val.has_value()) {
+          local_regrets_dict[ordered_actions[r]] += std::stof(*val);
+        }
       }
       redis.hmset(key, local_regrets_dict.begin(), local_regrets_dict.end());
-      // std::cout << debug;
-      // printf( "\n" );
     }
   }
 
@@ -80,9 +98,10 @@ static void print_strategy_r( PlayerModule &player_module,
 
     State new_state( state );
     doAction( ag->game, &actions[ a ], &new_state );
-    print_strategy_r( player_module, new_state, ag, p, max_round );
+    print_strategy_r( player_module, new_state, p, max_round, redis);
   }
 }
+
 
 int main( const int argc, const char *argv[] )
 {
@@ -94,13 +113,20 @@ int main( const int argc, const char *argv[] )
     return 1;
   }
 
+  phmap::BinaryInputArchive ar_in("/home/asellerg/data/buckets.bin");
+  printf("Loading phmap.\n");
+  cache.phmap_load(ar_in);
+  printf("Loaded phmap: %ld.\n", cache.size());
+
   /* Create the player, get the abstract game */
   int index = 1;
   fprintf( stderr, "Loading player module... " );
-  PlayerModule player_module( argv[ index ] );
+  std::vector<PlayerModule> player_modules;
+  for (int i = 0; i < MAX_PURE_CFR_PLAYERS; i++) {
+    player_modules.push_back(PlayerModule(argv[ index ], i));
+  }
   fprintf( stderr, "done!\n" );
   ++index;
-  const AbstractGame *ag = player_module.get_abstract_game( );
 
   /* Check for options */
   int max_round = MAX_ROUNDS;
@@ -122,13 +148,21 @@ int main( const int argc, const char *argv[] )
     }
   }
 
+  std::vector<std::thread> threads(MAX_PURE_CFR_PLAYERS);
+
+
   /* Print the strategy */
   fprintf( stderr, "Starting walk of abstract game tree...\n" );
   State state;
-  for( int p = 0; p < ag->game->numPlayers; ++p ) {
+  for( int p = 0; p < MAX_PURE_CFR_PLAYERS; p++) {
+    auto ag = player_modules[p].get_abstract_game( );
     initState( ag->game, 0, &state );
     printf( "=== PLAYER %d ===\n", p + 1 );
-    print_strategy_r( player_module, state, ag, p, max_round );
+    threads[p] = std::thread(print_strategy_r, std::ref(player_modules[p]), std::ref(state), p, max_round, std::ref(redis));
+  }
+
+  for (auto& thread : threads) {
+     thread.join();
   }
 
   return 0;

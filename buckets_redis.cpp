@@ -1,12 +1,9 @@
 #include <atomic>
 #include <chrono>
 #include <cstdio>
-#include <ctype.h>
 #include <ctime>
 #include <sw/redis++/redis++.h>
 #include <iostream>
-#include <fstream>
-#include <regex>
 #include <thread>
 #include "poker.h"
 #include "pokerlib.h"
@@ -17,6 +14,10 @@ using namespace std::chrono;
 using namespace sw::redis;
 
 hash_t buckets;
+HashT<uint64_t, const char *> debug;
+
+uint deck[52];
+
 
 std::unordered_map<char, int> ranks = {
   {'2', 0},
@@ -46,20 +47,31 @@ std::unordered_map<char, int> suits = {
 std::atomic<uint64_t> num_keys;
 
 void _read_keys(std::string pattern) {
+  auto cursor = 0LL;
+  auto count = 500000;
+  auto redis = Redis("unix:///run/redis.sock/0");
+  std::unordered_set<std::string> keys;
+  uint64_t num_local_keys = 0;
+  while (true) {
+    cursor = redis.scan(cursor, pattern, count, std::inserter(keys, keys.begin()));
+    if (cursor == 0) {
+      break;
+    }
+    num_keys.store(num_keys.load() + keys.size() - num_local_keys);
+    num_local_keys = keys.size();
+    printf("%ld keys scanned.\n", num_keys.load());
+  }
 
-  std::ifstream infile("/home/asellerg/data/" + pattern + ".data");
-  std::string line;
-  std::string colon = " : ";
-  const std::regex base_regex(".*:\\s*([0-9]+).*");
-  while (std::getline(infile, line)) {
-    auto delimiter = line.find(colon);
-    std::string key_str = line.substr(1, delimiter - 2);
-    std::smatch base_match;
-    std::regex_match(line, base_match, base_regex);
-    auto match = base_match[1].str().c_str();
-    auto bucket = std::atoi(match);
+  auto pipeline = redis.pipeline();
+  for (auto iter = keys.begin(); iter != keys.end(); ++iter) {
+    const char *key = (*iter).c_str();
+    pipeline.get(key);
+  }
 
-    const char *key = key_str.c_str();
+  int k = 0;
+  sw::redis::QueuedReplies resp = pipeline.exec();
+  for (auto iter = keys.begin(); iter != keys.end(); ++iter) {
+    const char *key = (*iter).c_str();
     uint64_t board[7] = {0};
     for (int i = 0; i < strlen(key); i+=2) {
       int rank = ranks[key[i]];
@@ -68,37 +80,40 @@ void _read_keys(std::string pattern) {
       board[i/2] = card + 1;
     }
     uint64_t idx = (board[0]) | (board[1] << 8) | (board[2] << 16) | (board[3] << 24) | (board[4] << 32) | (board[5] << 40) | (board[6] << 48);
-    buckets[idx] = bucket;
-    num_keys.store(buckets.size());
-    if (num_keys.load() % 1000 == 0) {
-      printf("%ld keys written.\n", num_keys.load());
+    uint16_t bucket = stoi(resp.get<std::string>(k));
+    if(buckets.count(idx)) {
+      assert(buckets[idx] == bucket);
     }
+    buckets[idx] = bucket;
+    k++;
   }
+  printf("%ld keys written.\n", buckets.size());
 }
 
 
 int main( const int argc, const char *argv[] )
 {
   num_keys.store(0);
-  std::vector<std::thread> threads(1);
+  init_deck(deck);
+  std::vector<std::thread> threads(5);
   auto start = high_resolution_clock::now();
-  _read_keys("preflop");
   char ranks_as_str[14] = "23456789TJQKA";
-  for (int i = 0; i < 13; i++) {
-    char pattern[2];
+  for (int i = 0; i < 5; i++) {
+    char pattern[3];
     pattern[0] = ranks_as_str[i];
-    pattern[1] = '\0';
+    pattern[1] = '*';
+    pattern[2] = '\0';
     threads[i] = std::thread(_read_keys, std::string(pattern));
   }
+
   for (auto& thread : threads) {
-     thread.join();
+    thread.join();
   }
   auto stop = high_resolution_clock::now();
   auto duration = duration_cast<seconds>(stop - start);
   printf("Total time: %d seconds.\n", duration.count());
-  phmap::BinaryOutputArchive out("/home/asellerg/data/buckets.bin");
+  phmap::BinaryOutputArchive out("./buckets.bin");
   buckets.phmap_dump(out);
-  printf("Saved phmap: %ld.\n", buckets.size());
 
   return 0;
 }

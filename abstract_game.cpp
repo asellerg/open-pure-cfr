@@ -55,8 +55,13 @@ AbstractGame::AbstractGame( const Parameters &params )
   /* process betting tree */
   State state;
   initState( game, 0, &state );
+  for (int i = 0; i < MAX_ROUNDS; i++) {
+    for (int j = 0; j < MAX_ABSTRACT_ACTIONS; j++) {
+      roots[ i ][ j ] = std::map<uint16_t, BettingNode*>();
+    }
+  }
   betting_tree_root = init_betting_tree_r( state, game, action_abs,
-					   num_entries_per_bucket );
+					   num_entries_per_bucket, &roots );
 
   /* Create card abstraction */
   switch( params.card_abs_type ) {

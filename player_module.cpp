@@ -23,7 +23,7 @@ extern "C" {
 #include "utility.hpp"
 #include <sw/redis++/redis++.h>
 
-PlayerModule::PlayerModule( const char *player_file )
+PlayerModule::PlayerModule( const char *player_file, int player_num )
   : ag( NULL ),
     verbose( false )
 {
@@ -68,7 +68,7 @@ PlayerModule::PlayerModule( const char *player_file )
 		 line );
 	exit( -1 );
       }
-      sprintf( binary_filename, "%s.regrets", tmp);
+      sprintf( binary_filename, "%s.%d.avg-strategy", tmp, player_num);
 
     } else {
       fprintf( stderr, "Can't parse line [%s] of player file [%s]\n",
@@ -132,22 +132,13 @@ PlayerModule::PlayerModule( const char *player_file )
 
 PlayerModule::~PlayerModule( )
 {
-  /* Unmap the binary file */
-  munmap( dump_start, sb.st_size );
-  dump_start = NULL;
-  for( int r = 0; r < ag->game->numRounds; ++r ) {
-    entries[ r ] = NULL;
-  }
-
-  /* Destroy the abstract game */
-  delete ag;
-  ag = NULL;
 }
 
 int PlayerModule::get_regrets( State &state,
               int local_regrets
               [ MAX_ABSTRACT_ACTIONS ],
-              int bucket )
+              int bucket,
+              hash_t *cache)
 {
   /* Initialize action probs to the default in case we must abort early
    * for one of several reasons
@@ -156,22 +147,19 @@ int PlayerModule::get_regrets( State &state,
   if( verbose ) {
     char tmp[ PATH_LENGTH ];
     printState( ag->game, &state, PATH_LENGTH, tmp );
-    fprintf( stderr, "\nCurrent real state: %s\n", tmp );
   }
 
   /* Find the current node from the sequence of actions in state */
   const BettingNode *node = ag->betting_tree_root;
   State old_state;
   initState( ag->game, 0, &old_state );
-  if( verbose ) {
-    fprintf( stderr, "Translated abstract state: " );
-  }
   for( int r = 0; r <= state.round; ++r ) {
     for( int a = 0; a < state.numActions[ r ]; ++a ) {
       const Action real_action = state.action[ r ][ a ];
       Action abstract_actions[ MAX_ABSTRACT_ACTIONS ];
+      uint16_t action_mask = 0;
       int num_actions = ag->action_abs->get_actions( ag->game, old_state,
-                 abstract_actions );
+                 abstract_actions, &action_mask );
       if( num_actions != node->get_num_choices( ) ) {
   if( verbose ) {
     fprintf( stderr, "Number of actions %d does not match number "
@@ -283,7 +271,6 @@ int PlayerModule::get_regrets( State &state,
   char action_str[ PATH_LENGTH ];
   printAction( ag->game, &abstract_actions[ choice ],
          PATH_LENGTH, action_str );
-  fprintf( stderr, " %s", action_str );
       }
       /* Move the current node and old_state along */
       node = node->get_child( );
@@ -307,14 +294,10 @@ int PlayerModule::get_regrets( State &state,
   }
 
   /* Bucket the cards */
-  hash_t cache;
   auto redis = sw::redis::Redis("unix://run/redis.sock/0");
   if( bucket == -1 ) {
     bucket = ag->card_abs->get_bucket( ag->game, node,
                state.boardCards, state.holeCards, cache, &redis);
-  }
-  if( verbose ) {
-    fprintf( stderr, " Bucket=%d\n", bucket );
   }
 
   /* Check for problems */
@@ -340,9 +323,6 @@ int PlayerModule::get_regrets( State &state,
 
   /* Get the abstract game action probabilities */
   if( sum_entries == 0 ) {
-    if( verbose ) {
-      fprintf( stderr, "ALL POSITIVE ENTRIES ARE ZERO\n" );
-    }
     return 0;
   }
   memset( local_regrets, 0, MAX_ABSTRACT_ACTIONS * sizeof( local_regrets[ 0 ] ) );
@@ -521,7 +501,7 @@ void PlayerModule::get_action_probs( State &state,
   auto redis = sw::redis::Redis("unix://run/redis.sock/0");
   if( bucket == -1 ) {
     bucket = ag->card_abs->get_bucket( ag->game, node,
-               state.boardCards, state.holeCards, cache, &redis);
+               state.boardCards, state.holeCards, &cache, &redis);
   }
   if( verbose ) {
     fprintf( stderr, " Bucket=%d\n", bucket );

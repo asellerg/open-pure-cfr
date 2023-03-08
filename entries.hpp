@@ -120,7 +120,7 @@ Entries_der<T>::Entries_der( size_t new_num_entries_per_bucket,
   if( loaded_data != NULL ) {
     entries = loaded_data;
   } else {
-    printf("num_entries: %d\n", total_num_entries);
+    printf("num_entries: %ld\n", total_num_entries);
     entries = ( T * ) calloc( total_num_entries, sizeof( T ) );
     /* If you hit this assert, you have run out of RAM!
      * Use a smaller game or coarser abstractions.
