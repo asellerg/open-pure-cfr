@@ -295,6 +295,8 @@ pure_cfr_entry_type_t Entries_der<T>::get_entry_type( ) const
     return TYPE_UINT32_T;
   } else if( typeid( T ) == typeid( uint64_t ) ) {
     return TYPE_UINT64_T;
+  } else if( typeid( T ) == typeid( uint16_t ) ) {
+    return TYPE_UINT16_T;
   } else {
     fprintf( stderr, "called get_entry_type for unrecognized template type!\n" );
     assert( 0 );

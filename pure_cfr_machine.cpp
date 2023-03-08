@@ -32,7 +32,7 @@ extern "C" {
 
 hash_t cache;
 
-std::unordered_map<int, std::string> action_abbrevs = {{0, "f"}, {1, "c"}, {2, "r0.5"}, {3, "r1"}};
+std::unordered_map<int, std::string> action_abbrevs = {{0, "f"}, {1, "c"}, {3, "r0.5"}, {5, "r1"}};
 
 std::unordered_map<std::string, uint64_t[ 4 ]> preflop_strategy;
 
@@ -91,6 +91,12 @@ PureCfrMachine::PureCfrMachine( const Parameters &params )
           	    = new Entries_der<int>( num_entries_per_bucket[ r ],
           				    total_num_entries[ r ] );
           	  break;
+
+            case TYPE_UINT16_T:
+              avg_strategy[ i ][ r ]
+                = new Entries_der<uint16_t>( num_entries_per_bucket[ r ],
+                      total_num_entries[ r ] );
+              break;
           	  
           	case TYPE_UINT32_T:
           	  avg_strategy[ i ][ r ]
@@ -490,7 +496,7 @@ int PureCfrMachine::walk_pure_cfr( const int position,
     retval = walk_pure_cfr( position, child, hand, rng, history, round, num_iterations );
 
     /* Update the average strategy if we are keeping track of one */
-    if( do_average ) {
+    if( do_average && round != 0) {
       if( avg_strategy[ player ][ round ]->increment_entry( bucket, soln_idx, choice ) ) {
 	fprintf( stderr, "The average strategy has overflown :(\n" );
 	fprintf( stderr, "To fix this, you must set a bigger AVG_STRATEGY_TYPE "

@@ -25,7 +25,7 @@ extern "C" {
 const int MAX_PURE_CFR_PLAYERS = 6;
 
 /* Maximum number of abstract actions a player can choose from */
-const int MAX_ABSTRACT_ACTIONS = 5;
+const int MAX_ABSTRACT_ACTIONS = 8;
 
 /* Length of strings used for filenames */
 const int PATH_LENGTH = 1024;
@@ -125,7 +125,8 @@ typedef enum {
   TYPE_INT = 1,
   TYPE_UINT32_T = 2,
   TYPE_UINT64_T = 3,
-  TYPE_NUM_TYPES = 4
+  TYPE_UINT16_T = 4,
+  TYPE_NUM_TYPES = 5
 } pure_cfr_entry_type_t;
 
 extern const pure_cfr_entry_type_t

@@ -27,4 +27,4 @@ REGRET_TYPES[ MAX_ROUNDS ] = { TYPE_INT, TYPE_INT, TYPE_INT, TYPE_INT };
  * Using 64-bit ints prevents overflow from happening too early and is cheap for the preflop.
  */
 const pure_cfr_entry_type_t
-AVG_STRATEGY_TYPES[ MAX_ROUNDS ] = { TYPE_UINT64_T, TYPE_UINT32_T, TYPE_UINT32_T, TYPE_UINT32_T };
+AVG_STRATEGY_TYPES[ MAX_ROUNDS ] = { TYPE_UINT8_T, TYPE_UINT32_T, TYPE_UINT32_T, TYPE_UINT32_T };
