@@ -120,34 +120,36 @@ int FcpaActionAbstraction::get_actions( const Game *game,
 	 * after making the raise.
 	 */
 	int pot_raise_size = pot + ( state.spent[ player ] + amount_to_call );
-	int quarter_pot_raise_size = int(0.25 * pot) + ( state.spent[ player ] + amount_to_call );
+	// int quarter_pot_raise_size = int(0.25 * pot) + ( state.spent[ player ] + amount_to_call );
+	int one_third_pot_raise_size = int(0.33 * pot) + ( state.spent[ player ] + amount_to_call );
 	int half_pot_raise_size = int(0.5 * pot) + ( state.spent[ player ] + amount_to_call );
-	int three_quarters_pot_raise_size = int(0.75 * pot) + ( state.spent[ player ] + amount_to_call );
-	if( quarter_pot_raise_size < max_raise_size && state.round != 0 && !anyRaises(&state)) {
+	int two_thirds_pot_raise_size = int(0.66 * pot) + ( state.spent[ player ] + amount_to_call );
+	// int three_quarters_pot_raise_size = int(0.75 * pot) + ( state.spent[ player ] + amount_to_call );
+	if( one_third_pot_raise_size >= min_raise_size && one_third_pot_raise_size < max_raise_size && state.round != 0 && !anyRaises(&state)) {
 	  actions[ num_actions ] = action;
-	  actions[ num_actions ].size = quarter_pot_raise_size;
+	  actions[ num_actions ].size = one_third_pot_raise_size;
 	  ++num_actions;
 	  *action_mask |= (1 << 2);
 	}
-	if( half_pot_raise_size < max_raise_size && !anyRaises(&state)) {
+	if( half_pot_raise_size < max_raise_size && ((state.round == 0 && !anyRaises(&state)) || (state.round != 0 && anyRaises(&state)))) {
 	  actions[ num_actions ] = action;
 	  actions[ num_actions ].size = half_pot_raise_size;
 	  ++num_actions;
 	  *action_mask |= (1 << 3);
 	}
-	if( three_quarters_pot_raise_size < max_raise_size && state.round != 0 && !anyRaises(&state)) {
+	if( two_thirds_pot_raise_size < max_raise_size && state.round != 0 && !anyRaises(&state)) {
 	  actions[ num_actions ] = action;
-	  actions[ num_actions ].size = three_quarters_pot_raise_size;
+	  actions[ num_actions ].size = two_thirds_pot_raise_size;
 	  ++num_actions;
 	  *action_mask |= (1 << 4);
 	}
-	if( pot_raise_size < max_raise_size ) {
+	if( state.round == 0 && pot_raise_size < max_raise_size ) {
 	  actions[ num_actions ] = action;
 	  actions[ num_actions ].size = pot_raise_size;
 	  ++num_actions;
 	  *action_mask |= (1 << 5);
 	}
-	if (state.round != 0 ) {
+	if (state.round != 0 && (anyRaises(&state) || ((10000 - state.spent[player]) < (3 * pot)))) {
 		/* Now add all-in */
 		actions[ num_actions ] = action;
 		actions[ num_actions ].size = max_raise_size;

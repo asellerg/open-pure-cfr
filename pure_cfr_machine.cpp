@@ -18,6 +18,7 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <limits.h>
+#include <thread>
 #include "poker.h"
 #include "constants.hpp"
 #include "parallel_hashmap/phmap_dump.h"
@@ -32,11 +33,30 @@ extern "C" {
 
 hash_t cache;
 
-std::unordered_map<int, std::string> action_abbrevs = {{0, "f"}, {1, "c"}, {3, "r0.5"}, {5, "r1"}};
+std::unordered_map<int, std::string> action_abbrevs = {{0, "f"}, {1, "c"}, {2, "r0.33"}, {3, "r0.5"}, {4, "r0.66"}, {5, "r1"}, {6, "rall"}};
+
+std::unordered_map<int, std::string> round_abbrevs = {{0, "|p|"}, {1, "|f|"}, {2, "|t|"}, {3, "|r|"}};
+
+HashT<std::string, std::unordered_map<std::string, uint32_t>> avg_strategy_dict;
 
 std::unordered_map<std::string, uint64_t[ 4 ]> preflop_strategy;
 
 std::unordered_map<uint16_t, std::vector<uint16_t>> allowed_actions_cache;
+
+std::vector<std::string> ordered_actions = {"fold", "call", "raise 0.33", "raise 0.5", "raise 0.66", "raise 1", "raise all"};
+
+void increment_average_strategy(int bucket, std::string history_str, std::vector<uint16_t> allowed_actions, int choice) {
+  auto key = std::to_string(bucket);
+  key.append("/");
+  for (int i = 0; i < allowed_actions.size(); i++) {
+    key.append(action_abbrevs[allowed_actions[i]]);
+    if (i != (allowed_actions.size() - 1)) {
+      key.append(",");
+    }
+  }
+  key.append(history_str);
+  avg_strategy_dict[key][ordered_actions[choice]] += 1;
+}
 
 
 PureCfrMachine::PureCfrMachine( const Parameters &params )
@@ -78,46 +98,7 @@ PureCfrMachine::PureCfrMachine( const Parameters &params )
   for (int i = 0; i < ag.game->numPlayers; i++) {
     for( int r = 0; r < MAX_ROUNDS; ++r ) {
       if( r < ag.game->numRounds ) {
-        if( do_average ) {
-        	switch( AVG_STRATEGY_TYPES[ r ] ) {
-          	case TYPE_UINT8_T:
-          	  avg_strategy[ i ][ r ]
-          	    = new Entries_der<uint8_t>( num_entries_per_bucket[ r ],
-          					total_num_entries[ r ] );
-          	  break;
-
-          	case TYPE_INT:
-          	  avg_strategy[ i ][ r ]
-          	    = new Entries_der<int>( num_entries_per_bucket[ r ],
-          				    total_num_entries[ r ] );
-          	  break;
-
-            case TYPE_UINT16_T:
-              avg_strategy[ i ][ r ]
-                = new Entries_der<uint16_t>( num_entries_per_bucket[ r ],
-                      total_num_entries[ r ] );
-              break;
-          	  
-          	case TYPE_UINT32_T:
-          	  avg_strategy[ i ][ r ]
-          	    = new Entries_der<uint32_t>( num_entries_per_bucket[ r ],
-          					 total_num_entries[ r ] );
-          	  break;
-          		
-          	case TYPE_UINT64_T:
-          	  avg_strategy[ i ][ r ]
-          	    = new Entries_der<uint64_t>( num_entries_per_bucket[ r ],
-          					 total_num_entries[ r ] );
-          	  break;
-          	  
-          	default:
-          	  fprintf( stderr, "unrecognized avg strategy type [%d]\n",
-          		   AVG_STRATEGY_TYPES[ r ] );
-          	  exit( -1 );
-          }
-        } else {
-      	 avg_strategy[ i ][ r ] = NULL;
-        }
+      	avg_strategy[ i ][ r ] = NULL;
       } else {
         /* Round out of range */
         avg_strategy[ i ][ r ] = NULL;
@@ -177,61 +158,33 @@ void PureCfrMachine::do_iteration( rng_state_t &rng, int64_t num_iterations )
     exit( -1 );
   }
   for( int p = 0; p < ag.game->numPlayers; ++p ) {
-    std::vector<int8_t> history;
-    walk_pure_cfr( p, ag.betting_tree_root, hand, rng, history, 0, num_iterations );
+    std::unordered_map<int8_t, std::vector<int8_t>> all_history;
+    walk_pure_cfr( p, ag.betting_tree_root, hand, rng, all_history, 0, num_iterations, "" );
   }
 }
 
 int PureCfrMachine::write_dump( const char *dump_prefix,
 				const bool do_regrets ) const
 {
-  /* Let's dump regrets first if required, then average strategy if necessary */
-  if( do_regrets ) {
-    /* Build the filename */
-    char filename[ PATH_LENGTH ];
-    snprintf( filename, PATH_LENGTH, "%s.regrets", dump_prefix );
-
-    /* Open the file */
-    FILE *file = fopen( filename, "w" );
-    if( file == NULL ) {
-      fprintf( stderr, "Could not open dump file [%s]\n", filename );
-      return 1;
-    }
-
-    /* Dump regrets */
-    for( int r = 0; r < ag.game->numRounds; ++r ) {
-      if( regrets[ r ]->write( file ) ) {
-	fprintf( stderr, "Error while dumping round %d to file [%s]\n",
-		 r, filename );
-	return 1;
-      }
-    }
-    
-    fclose( file );
-  }
 
   if( do_average ) {
     /* Dump avg strategy */
 
-    /* Build the filename */
-    for (int i = 0; i < ag.game->numPlayers; i++) {
-      char filename[ PATH_LENGTH ];
-      snprintf( filename, PATH_LENGTH, "%s.%d.avg-strategy", dump_prefix, i );
-
-      /* Open the file */
-      FILE *file = fopen( filename, "w" );
-      if( file == NULL ) {
-        fprintf( stderr, "Could not open dump file [%s]\n", filename );
-        return 1;
-      }
-
-      for( int r = 0; r < ag.game->numRounds; ++r ) {
-        if( avg_strategy[ i ][ r ]->write( file ) ) {
-  	return 1;
+    try {
+      std::ofstream out("/home/asellerg/data/avg_strategy.data");
+      for (auto const& entry : avg_strategy_dict) {
+        out << entry.first << ":";
+        std::unordered_map<std::string, float> local_strategy_dict = {{"fold", 0.}, {"call", 0.}, {"raise 0.33", 0.}, {"raise 0.5", 0.}, {"raise 0.66", 0.}, {"raise 1", 0.}, {"raise all", 0.}};
+        for (auto const& sub_entry : entry.second) {
+          local_strategy_dict[sub_entry.first] += sub_entry.second;
         }
+        for (auto const& local_strategy : local_strategy_dict) {
+          out << local_strategy.second << ",";
+        }
+        out << "\n";
       }
-
-      fclose( file );
+    } catch (...) {
+      fprintf( stderr, "Failed to dump average strategy.\n");
     }
   }
 
@@ -263,34 +216,6 @@ int PureCfrMachine::load_dump( const char *dump_prefix )
     }
   }
   fclose( file );
-
-  if( do_average ) {
-    for (int i = 0; i < ag.game->numPlayers; i++) {
-      /* Build the filename */
-      snprintf( filename, PATH_LENGTH, "%s.%d.avg-strategy", dump_prefix, i);
-
-      /* Open the file */
-      file = fopen( filename, "r" );
-      if( file == NULL ) {
-        fprintf( stderr, "WARNING: Could not open dump load file [%s]\n",
-  	       filename );
-        fprintf( stderr, "All average values set to zero.\n" );
-        return -1;
-      }
-
-      /* Load avg strategy */
-      for( int r = 0; r < ag.game->numRounds; ++r ) {
-  	  
-        if( avg_strategy[ i ][ r ]->load( file ) ) {
-  	fprintf( stderr, "failed to load dump file [%s] for round %d\n",
-  		 filename, r );
-  	return 1;
-        }
-      }
-
-      fclose( file );
-    }
-  }
 
   return 0;
 }
@@ -383,9 +308,10 @@ int PureCfrMachine::walk_pure_cfr( const int position,
 				   const BettingNode *cur_node,
 				   const hand_t &hand,
 				   rng_state_t &rng,
-           std::vector<int8_t> history,
+           std::unordered_map<int8_t, std::vector<int8_t>> all_history,
            int8_t prev_round,
-           int64_t num_iterations )
+           int64_t num_iterations,
+           std::string history_str )
 {
   int retval = 0;
 
@@ -415,9 +341,7 @@ int PureCfrMachine::walk_pure_cfr( const int position,
   int8_t player = cur_node->get_player( );
   int8_t round = cur_node->get_round( );
   int64_t soln_idx = cur_node->get_soln_idx( );
-  if (round != prev_round) {
-    history.clear();
-  }
+  auto history = all_history[round];
   int bucket;
   if( ag.card_abs->can_precompute_buckets( ) ) {
     bucket = hand.precomputed_buckets[ player ][ round ];
@@ -485,6 +409,12 @@ int PureCfrMachine::walk_pure_cfr( const int position,
   }
   
   const BettingNode *child = cur_node->get_child( );
+  int num_active = MAX_PURE_CFR_PLAYERS;
+  for (int p = 0; p < MAX_PURE_CFR_PLAYERS; p++) {
+    if (cur_node->did_player_fold(p)) {
+      num_active -= 1;
+    }
+  }
 
   if( player != position ) {
     /* Opponent's node. Recurse down the single choice. */
@@ -492,19 +422,26 @@ int PureCfrMachine::walk_pure_cfr( const int position,
     for( int c = 0; c < choice; ++c ) {
       child = child->get_sibling( );
     }
-    history.push_back(allowed_actions[choice]);
-    retval = walk_pure_cfr( position, child, hand, rng, history, round, num_iterations );
-
-    /* Update the average strategy if we are keeping track of one */
-    if( do_average && round != 0) {
-      if( avg_strategy[ player ][ round ]->increment_entry( bucket, soln_idx, choice ) ) {
-	fprintf( stderr, "The average strategy has overflown :(\n" );
-	fprintf( stderr, "To fix this, you must set a bigger AVG_STRATEGY_TYPE "
-		 "in constants.cpp and start again from scratch.\n" );
-	exit( 1 );
+    if (round != 0 && !all_history[round].size()) {
+      history_str.append(round_abbrevs[round]);
+      if (round == 1) {
+        history_str.append(std::to_string(num_active));
+        history_str.append("|");
       }
     }
-    
+    /* Update the average strategy if we are keeping track of one */
+    if( do_average && round != 0) {
+      increment_average_strategy(bucket, history_str, allowed_actions, allowed_actions[choice]);
+    }
+    history.push_back(allowed_actions[choice]);
+    if (round != 0) {
+      if (all_history[round].size()) {
+        history_str.append(",");
+      }
+      history_str.append(action_abbrevs[allowed_actions[choice]]);
+    }
+    all_history[round] = history;
+    retval = walk_pure_cfr( position, child, hand, rng, all_history, round, num_iterations, history_str );
   } else {
     /* Current player's node. Recurse down all choices to get the value of each */
 
@@ -524,8 +461,23 @@ int PureCfrMachine::walk_pure_cfr( const int position,
         }
       }
       curr = history;
+      auto all_curr = all_history;
       curr.push_back(allowed_actions[c]);
-      auto v = walk_pure_cfr( position, child, hand, rng, curr, round, num_iterations );
+      all_curr[round] = curr;
+      auto curr_history_str = history_str;
+      if (round != 0) {
+        if (all_history[round].size()) {
+          curr_history_str.append(",");
+        } else {
+          curr_history_str.append(round_abbrevs[round]);
+          if (round == 1) {
+            curr_history_str.append(std::to_string(num_active));
+            curr_history_str.append("|");
+          }
+        }
+        curr_history_str.append(action_abbrevs[allowed_actions[c]]);
+      }
+      auto v = walk_pure_cfr( position, child, hand, rng, all_curr, round, num_iterations, curr_history_str );
       vo += probs[ c ] * v;
       values[ c ] = v;
       child = child->get_sibling( );

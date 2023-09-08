@@ -145,11 +145,11 @@ int PotentialAwareImperfectRecallAbstraction::num_buckets( const Game *game,
     case 0:
       return 170;
     case 1:
-      return 501;
+      return 1001;
     case 2:
-      return 201;
+      return 501;
     case 3:
-      return 201;
+      return 501;
   }
   return 1;
 }
@@ -161,11 +161,11 @@ int PotentialAwareImperfectRecallAbstraction::num_buckets( const Game *game,
     case 0:
       return 170;
     case 1:
-      return 501;
+      return 1001;
     case 2:
-      return 201;
+      return 501;
     case 3:
-      return 201;
+      return 501;
   }
   return 1;
 }

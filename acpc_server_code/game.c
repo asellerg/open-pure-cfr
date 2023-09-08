@@ -1293,15 +1293,8 @@ static int printBettingPluribus( const Game *game, const State *state,
   c = 0;
   State *currState = malloc(sizeof(State));
   initState(game, 0, currState);
-  int flop_active_players = game->numPlayers;
-  for( a = 0; a < state->numActions[ 0 ]; ++a ) {
-    Action *action = &state->action[ 0 ][ a ];
-    if ( action->type == a_fold) {
-      flop_active_players -= 1;
-    }
-  }
   for(i = 0; i <= state->round; ++i ) {
-    if( i != 0 ) {
+    if( i >= 0 ) {
       if( c >= maxLen ) {
   return -1;
       }
@@ -1319,21 +1312,12 @@ static int printBettingPluribus( const Game *game, const State *state,
       ++c;
     }
 
-    if (i == 1) {
-      char flop_active_players_str[24];
-      sprintf(flop_active_players_str, "%d", flop_active_players);
-      string[ c ] = flop_active_players_str[0];
-      ++c;
-      string[ c ] = '|';
-      ++c;
-    }
-
     /* print betting for round */
     for( a = 0; a < state->numActions[ i ]; ++a ) {
       Action *action = &state->action[ i ][ a ];
 
       int r = 0;
-      if (i != 0) {
+      if (i >= 0) {
         if (action->type == a_fold) {
           string[ c ] = 'f';
           ++r;
@@ -1343,6 +1327,7 @@ static int printBettingPluribus( const Game *game, const State *state,
         } else if (action->type == a_raise) {
           string[ c ] = 'r';
           ++c;
+
           int32_t pot_size = 0;
           for( int p = 0; p < game->numPlayers; ++p ) {
             pot_size += currState->spent[ p ];
@@ -1352,15 +1337,27 @@ static int printBettingPluribus( const Game *game, const State *state,
           pot_size += amount_to_call;
           int32_t raise_size = action->size - amount_to_call - currState->spent[ player ];
           float raise_frac = (1.0 * raise_size) / (pot_size);
-          if (raise_frac > (0.6)) {
-            string[ c ] = '1';
-            ++r;
-          } else {
+          if (raise_frac > (0.33-1E-4) && raise_frac < (0.33+1E-4)) {
+            string[ c ] = '0'; c++;
+            string[ c ] = '.'; c++;
+            string[ c ] = '3'; c++;
+            string[ c ] = '3'; c++;
+          } else if (raise_frac > (0.5-1E-4) && raise_frac < (0.5+1E-4)) {
             string[ c ] = '0'; c++;
             string[ c ] = '.'; c++;
             string[ c ] = '5'; c++;
+          } else if (raise_frac > (0.66-1E-4) && raise_frac < (0.66+1E-4)) {
+            string[ c ] = '0'; c++;
+            string[ c ] = '.'; c++;
+            string[ c ] = '6'; c++;
+            string[ c ] = '6'; c++;
+          } else if (raise_frac > (1.0-1E-4) && raise_frac < (1.0+1E-4)) {
+            string[ c ] = '1'; c++;
+          } else if ((currState->maxSpent + raise_size) == game->stack[ player ]) {
+            string[ c ] = 'a'; c++;
+            string[ c ] = 'l'; c++;
+            string[ c ] = 'l'; c++;
           }
-
         }
         if( r < 0 ) {
           return -1;
@@ -1374,6 +1371,7 @@ static int printBettingPluribus( const Game *game, const State *state,
       }
     }
   }
+  free(currState);
 
   if( c >= maxLen ) {
     return -1;

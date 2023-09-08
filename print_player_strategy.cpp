@@ -52,6 +52,9 @@ void print_strategy_r( PlayerModule &player_module,
   }
 
   /* Print 'em out */
+  // std::unordered_map<int, std::string> action_abbrevs = {{0, "f"}, {1, "c"}, {2, "r0.25"}, {3, "r0.5"}, {4, "r0.75"}, {5, "r1"}, {6, "rall"}};
+  // std::unordered_map<int, std::string> action_full_name = {{0, "fold"}, {1, "call"}, {2, "raise 0.25"}, {3, "raise 0.5"}, {4, "raise 0.75"}, {5, "raise 1"}, {6, "raise all"}};
+
   std::unordered_map<int, std::string> action_abbrevs = {{0, "f"}, {1, "c"}, {2, "r0.5"}, {3, "r1"}};
   std::unordered_map<int, std::string> action_full_name = {{0, "fold"}, {1, "call"}, {2, "raise 0.5"}, {3, "raise 1"}};
     
@@ -63,7 +66,9 @@ void print_strategy_r( PlayerModule &player_module,
     /* Print the player's action probabilities for every possible bucket */
     const int num_buckets = ag->card_abs->num_buckets( ag->game, state );
     for( int bucket = 0; bucket < num_buckets; ++bucket ) {
+      // std::unordered_map<std::string, float> local_regrets_dict = {{"fold", 0.}, {"call", 0.}, {"raise 0.25", 0.}, {"raise 0.5", 0.}, {"raise 0.75", 0.}, {"raise 1", 0.}, {"raise all", 0.}};
       std::unordered_map<std::string, float> local_regrets_dict = {{"fold", 0.}, {"call", 0.}, {"raise 0.5", 0.}, {"raise 1", 0.}};
+      
       std::string key = std::to_string(bucket);
 
       /* Get the regrets */
@@ -122,7 +127,7 @@ int main( const int argc, const char *argv[] )
   int index = 1;
   fprintf( stderr, "Loading player module... " );
   std::vector<PlayerModule> player_modules;
-  for (int i = 0; i < MAX_PURE_CFR_PLAYERS; i++) {
+  for (int i = 0; i < 2; i++) {
     player_modules.push_back(PlayerModule(argv[ index ], i));
   }
   fprintf( stderr, "done!\n" );
@@ -148,13 +153,13 @@ int main( const int argc, const char *argv[] )
     }
   }
 
-  std::vector<std::thread> threads(MAX_PURE_CFR_PLAYERS);
+  std::vector<std::thread> threads(1);
 
 
   /* Print the strategy */
   fprintf( stderr, "Starting walk of abstract game tree...\n" );
   State state;
-  for( int p = 0; p < MAX_PURE_CFR_PLAYERS; p++) {
+  for( int p = 0; p < 2; p++) {
     auto ag = player_modules[p].get_abstract_game( );
     initState( ag->game, 0, &state );
     printf( "=== PLAYER %d ===\n", p + 1 );

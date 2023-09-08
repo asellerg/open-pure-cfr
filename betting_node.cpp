@@ -119,10 +119,8 @@ void get_term_values_6p( const State &state,
   for( int p = 0; p < game->numPlayers; ++p ) {
     if (state.playerFolded[ p ]) {
       leaf_type_int &= ~(1 << p);
-      // printf("playerFolded: %d\n", p);
     }
   }
-  // printf("leaf_type_int: %d\n", leaf_type_int);
 
   *leaf_type = static_cast<leaf_type_t>(leaf_type_int);
 }
@@ -183,17 +181,7 @@ BettingNode *init_betting_tree_r( State &state,
   /* Choice node.  First, compute number of different allowable actions */
   Action actions[ MAX_ABSTRACT_ACTIONS ];
   uint16_t action_mask = 0;
-  // int num_folds = 0;
-  // for (int i = 0; i < state.numActions[ state.round ]; i++) {
-  //   if (state.action[ state.round ][i].type == 0) {
-  //     num_folds++;
-  //   }
-  // }
-  // if (state.round == 0 && num_folds == 2 && state.numActions[ state.round ] == 2) {
-  //   printf("action_mask: %d\n", action_mask);
-  // }
   int num_choices = action_abs->get_actions( game, state, actions, &action_mask );
-  // printf("action_mask: %d\n", action_mask);
 
   /* Next, grab the index for this node into the regrets and avg_strategy */
   int64_t soln_idx = num_entries_per_bucket[ state.round ];
@@ -212,27 +200,8 @@ BettingNode *init_betting_tree_r( State &state,
     BettingNode *child;
     State new_state( state );
     doAction( game, &actions[ a ], &new_state );
-    // if (new_state.round != state.round && first_child == NULL) {
-    //   Action new_actions[ MAX_ABSTRACT_ACTIONS ];
-    //   int new_num_choices = action_abs->get_actions( game, new_state, new_actions );
-    //   uint16_t folded = 0;
-    //   for (int i = 0; i < MAX_PURE_CFR_PLAYERS; i++) {
-    //     if (new_state.playerFolded[ i ]) {
-    //       folded |= (1 << i);
-    //     }
-    //   }
-    //   if ((*roots)[ new_state.round ][ 0 ][ 0 ] != NULL) {
-    //     child = (*roots)[ new_state.round ][ 0 ][ 0 ];
-    //   } else {
-    //     child = init_betting_tree_r( new_state, game, action_abs,
-    //       num_entries_per_bucket, roots );
-    //     printf("round: %d, new_num_choices: %d, folded: %d\n", new_state.round, new_num_choices, folded);
-    //     (*roots)[ new_state.round ][ 0 ][ 0 ] = child;
-    //   }
-    // } else {
     child = init_betting_tree_r( new_state, game, action_abs,
 					     num_entries_per_bucket, roots );
-    // }
     if( last_child != NULL ) {
       last_child->set_sibling( child );
     } else {

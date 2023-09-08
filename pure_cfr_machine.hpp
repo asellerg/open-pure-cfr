@@ -45,9 +45,10 @@ protected:
 		     const BettingNode *cur_node,
 		     const hand_t &hand,
 		     rng_state_t &rng,
-         std::vector<int8_t> history,
+         std::unordered_map<int8_t, std::vector<int8_t>> history,
          int8_t prev_round,
-         int64_t num_iterations);
+         int64_t num_iterations,
+         std::string history_str);
 
   AbstractGame ag;
   const bool do_average;
