@@ -174,7 +174,7 @@ int PureCfrMachine::write_dump( const char *dump_prefix,
       std::ofstream out("/home/asellerg/data/avg_strategy.data");
       for (auto const& entry : avg_strategy_dict) {
         out << entry.first << ":";
-        std::unordered_map<std::string, float> local_strategy_dict = {{"fold", 0.}, {"call", 0.}, {"raise 0.33", 0.}, {"raise 0.5", 0.}, {"raise 0.66", 0.}, {"raise 1", 0.}, {"raise all", 0.}};
+        std::map<std::string, float> local_strategy_dict = {{"fold", 0.}, {"call", 0.}, {"raise 0.33", 0.}, {"raise 0.5", 0.}, {"raise 0.66", 0.}, {"raise 1", 0.}, {"raise all", 0.}};
         for (auto const& sub_entry : entry.second) {
           local_strategy_dict[sub_entry.first] += sub_entry.second;
         }
@@ -382,7 +382,7 @@ int PureCfrMachine::walk_pure_cfr( const int position,
 
   if( sum_pos_regrets == 0 ) {
     /* No positive regret, so assume a default uniform random current strategy */
-    for( int c = 0; c < num_choices; ++c ) {
+    for( int c = 0; c < num_choices; c++ ) {
       pos_regrets[ c ] = 1;
       sum_pos_regrets++;
     }
@@ -397,14 +397,14 @@ int PureCfrMachine::walk_pure_cfr( const int position,
 
   /* Purify the current strategy so that we always take choice */
   uint64_t dart = genrand_int32( &rng ) % sum_pos_regrets;
-  for( ; choice < num_choices; ++choice ) {
+  for( ; choice < num_choices; choice++ ) {
     if( dart < pos_regrets[ choice ] ) {
       break;
     }
     dart -= pos_regrets[ choice ];
   }
   double probs[ num_choices ] = {0.};
-  for( int c = 0; c < num_choices; ++c) {
+  for( int c = 0; c < num_choices; c++) {
     probs[ c ] = ((double) pos_regrets[ c ]) / ((double) sum_pos_regrets);
   }
   

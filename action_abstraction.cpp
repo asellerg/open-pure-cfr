@@ -160,12 +160,16 @@ int FcpaActionAbstraction::get_actions( const Game *game,
 	
     } else if( isValidAction( game, &state, 0, &action ) ) {
       /* Fold and call */
-      actions[ num_actions ] = action;
-      ++num_actions;
       if (action.type == 0) {
-      	*action_mask |= 1;
+				if (anyRaises(&state)) {
+			      	  *action_mask |= 1;
+				  actions[ num_actions ] = action;
+			          ++num_actions;
+				}
       } else {
       	*action_mask |= (1 << 1);
+        actions[ num_actions ] = action;
+        ++num_actions;
       }
     }
   }
