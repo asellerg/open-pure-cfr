@@ -23,37 +23,46 @@ namespace spanner = ::google::cloud::spanner;
 std::atomic<uint64_t> num_keys;
 std::atomic<uint64_t> num_spanner_mutations;
 
-void _write_keys(std::vector<std::string>& keys) {
-  auto redis = Redis("unix:///run/redis.sock/2");
-  auto client = spanner::Client(spanner::MakeConnection(spanner::Database("epicac", "prod", "blueprint")));
-  auto pipeline = redis.pipeline();
-  for (auto iter = keys.begin(); iter != keys.end(); ++iter) {
-    const char *key = (*iter).c_str();
-    pipeline.get(key);
+std::vector<std::string> split(const std::string& str, char delimiter) {
+  std::vector<std::string> tokens;
+  size_t start = 0;
+  size_t end = str.find(delimiter);
+
+  while (end != std::string::npos) {
+    tokens.push_back(str.substr(start, end - start));
+    start = end + 1;
+    end = str.find(delimiter, start);
   }
 
+  tokens.push_back(str.substr(start));
+  return tokens;
+}
+
+void _write_keys(int filename) {
+  auto client = spanner::Client(spanner::MakeConnection(spanner::Database("epicac", "prod", "trial_69")));
+
   int k = 0;
-  int j = 0;
-  sw::redis::QueuedReplies resp = pipeline.exec();
+  std::ifstream infile("/home/asellerg/data/avg_strategy/" + std::to_string(filename));
+  std::string line;
+  std::string colon = ":";
   std::vector<spanner::Mutation> mutations;
-  for (auto iter = keys.begin(); iter != keys.end(); ++iter) {
-    std::string key = *iter;
-    std::vector<sw::redis::OptionalString> vals;
-    redis.hmget(key, {"fold", "call", "raise 0.33", "raise 0.5", "raise 0.66", "raise 1", "raise all"}, std::back_inserter(vals));
+  while (std::getline(infile, line)) {
+    auto delimiter = line.find(colon);
+    std::string key_str = line.substr(0, delimiter);
+    std::string value_str = line.substr(delimiter + 1);
+    auto vals = split(value_str, ',');
     std::vector<double> strategy;
-    for (int r = 0; r < vals.size(); r++) {
+    for (int r = 0; r < vals.size() - 1; r++) {
       auto val = vals[r];
-      if (val.has_value()) {
-        strategy.push_back(std::stof(*val));
-      }
+      strategy.push_back(std::stof(val));
     }
+    std::swap(strategy[0], strategy[1]);
     mutations.push_back(spanner::InsertOrUpdateMutationBuilder(
         "strategy", {"info_set", "strategy"})
-        .EmplaceRow(key, strategy)
+        .EmplaceRow(key_str, strategy)
         .Build());
     k++;
-    if (k > 500) {
-      j++;
+    if (k > 5000) {
       auto commit_result = client.Commit(spanner::Mutations(std::move(mutations)));
 
       if (!commit_result or !commit_result.ok()) {
@@ -63,10 +72,7 @@ void _write_keys(std::vector<std::string>& keys) {
         num_spanner_mutations.store(num_spanner_mutations.load() + k);
       }
       k = 0;
-      if (j == 10) {
-        printf("%ld Spanner mutations.\n", num_spanner_mutations.load());
-        j = 0;
-      }
+      printf("%ld Spanner mutations.\n", num_spanner_mutations.load());
     }
 
   }
@@ -76,35 +82,13 @@ void _write_keys(std::vector<std::string>& keys) {
 
 int main( const int argc, const char *argv[] )
 {
-  num_keys.store(0);
   num_spanner_mutations.store(0);
   auto num_threads = 128;
   std::vector<std::thread> threads(num_threads);
   auto start = high_resolution_clock::now();
-  auto cursor = 0LL;
-  auto count = 1000000;
-  auto redis = Redis("unix:///run/redis.sock/2");
-
-  std::vector<std::string> chunks[num_threads];
-
-  uint64_t num_local_keys = 0;
-  int i = 0;
-  while (true) {
-    num_local_keys = chunks[i].size();
-    cursor = redis.scan(cursor, "*", count, std::inserter(chunks[i], chunks[i].begin()));
-    if (cursor == 0) {
-      break;
-    }
-    num_keys.store(num_keys.load() + chunks[i].size() - num_local_keys);
-    printf("%ld keys scanned.\n", num_keys.load());
-    i++;
-    if (i == (num_threads - 1)) {
-      i = 0;
-    }
-  }
 
   for (int i = 0; i < num_threads; i++) {
-    threads[i] = std::thread(_write_keys, std::ref(chunks[i]));
+    threads[i] = std::thread(_write_keys, i);
   }
 
 
