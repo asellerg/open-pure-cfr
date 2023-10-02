@@ -38,8 +38,7 @@ public:
 			  const uint8_t board_cards[ MAX_BOARD_CARDS ],
 			  const uint8_t hole_cards[ MAX_PURE_CFR_PLAYERS ]
 			  [ MAX_HOLE_CARDS ],
-        hash_t *preflop_flop_turn_buckets,
-        HashT<uint64_t, uint8_t> *river_buckets,
+        hash_t *cache,
         sw::redis::Redis *redis = 0) const = 0;
   virtual bool can_precompute_buckets( ) const { return false; }
   virtual void precompute_buckets( const Game *game,
@@ -64,8 +63,7 @@ public:
 			  const uint8_t board_cards[ MAX_BOARD_CARDS ],
 			  const uint8_t hole_cards[ MAX_PURE_CFR_PLAYERS ]
 			  [ MAX_HOLE_CARDS ],
-        hash_t *preflop_flop_turn_buckets,
-        HashT<uint64_t, uint8_t> *river_buckets,
+        hash_t *cache,
         sw::redis::Redis *redis = 0) const;
   virtual bool can_precompute_buckets( ) const { return true; }
   virtual void precompute_buckets( const Game *game,
@@ -99,8 +97,7 @@ public:
 			  const uint8_t board_cards[ MAX_BOARD_CARDS ],
 			  const uint8_t hole_cards[ MAX_PURE_CFR_PLAYERS ]
 			  [ MAX_HOLE_CARDS ],
-        hash_t *preflop_flop_turn_buckets,
-        HashT<uint64_t, uint8_t> *river_buckets,
+        hash_t *cache,
         sw::redis::Redis *redis = 0) const;
   virtual bool can_precompute_buckets( ) const { return true; }
   virtual void precompute_buckets( const Game *game,
@@ -122,8 +119,7 @@ public:
         const uint8_t board_cards[ MAX_BOARD_CARDS ],
         const uint8_t hole_cards[ MAX_PURE_CFR_PLAYERS ]
         [ MAX_HOLE_CARDS ],
-        hash_t *preflop_flop_turn_buckets,
-        HashT<uint64_t, uint8_t> *river_buckets,
+        hash_t *cache,
         sw::redis::Redis *redis = 0) const;
   virtual bool can_precompute_buckets( ) const { return false; }
 };

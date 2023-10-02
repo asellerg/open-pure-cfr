@@ -81,8 +81,7 @@ int NullCardAbstraction::get_bucket( const Game *game,
 				     const uint8_t hole_cards
 				     [ MAX_PURE_CFR_PLAYERS ]
 				     [ MAX_HOLE_CARDS ],
-             hash_t *preflop_flop_turn_buckets,
-             HashT<uint64_t, uint8_t> *river_buckets,
+             hash_t *cache,
              sw::redis::Redis *redis) const
 {
   return get_bucket_internal( game, board_cards, hole_cards,
@@ -205,8 +204,7 @@ int PotentialAwareImperfectRecallAbstraction::get_bucket( const Game *game,
               const uint8_t hole_cards
               [ MAX_PURE_CFR_PLAYERS ]
               [ MAX_HOLE_CARDS ],
-              hash_t *preflop_flop_turn_buckets,
-              HashT<uint64_t, uint8_t> *river_buckets,
+              hash_t *cache,
               sw::redis::Redis *redis) const
 {
   uint64_t sorted_hole_cards[2];
@@ -214,11 +212,11 @@ int PotentialAwareImperfectRecallAbstraction::get_bucket( const Game *game,
   uint64_t idx = 0;
   if (node->get_round() == 0) {
     idx = (sorted_hole_cards[0]) | (sorted_hole_cards[1] << 8);
-    if (!preflop_flop_turn_buckets->count(idx)) {
+    if (!cache->count(idx)) {
       printf("Missing idx: %d for hole cards %d %d.\n", idx, sorted_hole_cards[0], sorted_hole_cards[1]);
       return 0;
     }
-    uint16_t bucket = (*preflop_flop_turn_buckets)[idx];
+    uint16_t bucket = (*cache)[idx];
     return bucket;
   }
   uint64_t sorted_board_cards[5] = {0};
@@ -232,22 +230,12 @@ int PotentialAwareImperfectRecallAbstraction::get_bucket( const Game *game,
     sort_cards(board_cards, 5, sorted_board_cards);
     idx = (sorted_hole_cards[0]) | (sorted_hole_cards[1] << 8) | (sorted_board_cards[0] << 16) | (sorted_board_cards[1] << 24) | (sorted_board_cards[2] << 32) | (sorted_board_cards[3] << 40) | (sorted_board_cards[4] << 48);
   }
-  int count; 
-  if (node->get_round() == 3) {
-    count = river_buckets->count(idx);
-  } else {
-    count = preflop_flop_turn_buckets->count(idx);
-  }
+  int count = cache->count(idx);
   if (!count) {
     printf("Missing idx: %d for board %d %d %d %d %d %d %d.\n", idx, sorted_hole_cards[0], sorted_hole_cards[1], sorted_board_cards[0], sorted_board_cards[1], sorted_board_cards[2], sorted_board_cards[3], sorted_board_cards[4]);
     return 0;
   }
-  if (node->get_round() == 3) {
-    return (*river_buckets)[idx];
-  } else {
-    return (*preflop_flop_turn_buckets)[idx];
-  }
-  return -1;
+  return (*cache)[idx];
 }
 
 BlindCardAbstraction::BlindCardAbstraction( )
@@ -277,8 +265,7 @@ int BlindCardAbstraction::get_bucket( const Game *game,
 				      const uint8_t hole_cards
 				      [ MAX_PURE_CFR_PLAYERS ]
 				      [ MAX_HOLE_CARDS ],
-              hash_t *preflop_flop_turn_buckets,
-              HashT<uint64_t, uint8_t> *river_buckets,
+              hash_t *cache,
               sw::redis::Redis *redis) const
 {
   return 0;

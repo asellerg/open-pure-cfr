@@ -31,8 +31,7 @@ extern "C" {
 /* Pure CFR includes */
 #include "pure_cfr_machine.hpp"
 
-hash_t preflop_flop_turn_buckets;
-HashT<uint64_t, uint8_t> river_buckets;
+hash_t cache;
 
 std::unordered_map<int, std::string> action_abbrevs = {{0, "f"}, {1, "c"}, {2, "r0.33"}, {3, "r0.5"}, {4, "r0.66"}, {5, "r1"}, {6, "rall"}};
 
@@ -64,8 +63,6 @@ PureCfrMachine::PureCfrMachine( const Parameters &params )
   : ag( params ),
     do_average( params.do_average )
 {
-  init_deck(deck);
-
   /* count up the number of entries required per round to store regret,
    * avg_strategy
    */
@@ -150,14 +147,10 @@ void PureCfrMachine::load_phmap()
       preflop_strategy[info_set_str][i] = std::atoi(result[i].c_str());
     }
   }
-  phmap::BinaryInputArchive preflop_flop_turn_in("/home/asellerg/data/preflop_flop_turn_buckets.bin");
-  printf("\nLoading preflop/flop/turn phmap.\n");
-  preflop_flop_turn_buckets.phmap_load(preflop_flop_turn_in);
-  printf("Loaded phmap: %ld.\n", preflop_flop_turn_buckets.size());
-  phmap::BinaryInputArchive river_in("/home/asellerg/data/river_buckets.bin");
-  printf("\nLoading river phmap.\n");
-  river_buckets.phmap_load(river_in);
-  printf("Loaded phmap: %ld.\n", river_buckets.size());
+  phmap::BinaryInputArchive ar_in("/home/asellerg/data/buckets.bin");
+  printf("\nLoading phmap.\n");
+  cache.phmap_load(ar_in);
+  printf("Loaded phmap: %ld.\n", cache.size());
 }
 
 void PureCfrMachine::do_iteration( rng_state_t &rng, int64_t num_iterations )
@@ -182,7 +175,7 @@ int PureCfrMachine::write_dump( const char *dump_prefix, intmax_t iterations_com
 
     try { 
       char filename[256];
-      snprintf(filename, sizeof(filename), "/sda/open_pure_cfr/avg_strategy/%jd.data", iterations_complete);
+      snprintf(filename, sizeof(filename), "/home/asellerg/open_pure_cfr/avg_strategy/%jd.data", iterations_complete);
       std::ofstream out(filename);
       for (auto& entry : avg_strategy_dict) {
         out << entry.first << ":";
@@ -355,7 +348,7 @@ int PureCfrMachine::walk_pure_cfr( const int position,
     bucket = hand.precomputed_buckets[ player ][ round ];
   } else {
     bucket = ag.card_abs->get_bucket( ag.game, cur_node, hand.board_cards,
-				      hand.hole_cards, &preflop_flop_turn_buckets, &river_buckets);
+				      hand.hole_cards, &cache);
   }
   std::string info_set = std::to_string(bucket);
   int choice;
