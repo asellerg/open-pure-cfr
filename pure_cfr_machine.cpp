@@ -31,13 +31,14 @@ extern "C" {
 /* Pure CFR includes */
 #include "pure_cfr_machine.hpp"
 
-hash_t cache;
+hash_t preflop_flop_turn_buckets;
+HashT<uint64_t, uint8_t> river_buckets;
 
 std::unordered_map<int, std::string> action_abbrevs = {{0, "f"}, {1, "c"}, {2, "r0.33"}, {3, "r0.5"}, {4, "r0.66"}, {5, "r1"}, {6, "rall"}};
 
 std::unordered_map<int, std::string> round_abbrevs = {{0, "|p|"}, {1, "|f|"}, {2, "|t|"}, {3, "|r|"}};
 
-HashT<std::string, std::unordered_map<std::string, uint32_t>> avg_strategy_dict;
+HashT<std::string, std::map<std::string, uint32_t>> avg_strategy_dict;
 
 std::unordered_map<std::string, uint64_t[ 4 ]> preflop_strategy;
 
@@ -84,6 +85,11 @@ PureCfrMachine::PureCfrMachine( const Parameters &params )
         	regrets[ r ] = new Entries_der<int>( num_entries_per_bucket[ r ],
         					     total_num_entries[ r ] );
         	break;
+
+        case TYPE_INT16_T:
+          regrets[ r ] = new Entries_der<int16_t>( num_entries_per_bucket[ r ],
+                       total_num_entries[ r ] );
+          break;
 
         default:
         	fprintf( stderr, "unrecognized regret type [%d], "
@@ -144,10 +150,14 @@ void PureCfrMachine::load_phmap()
       preflop_strategy[info_set_str][i] = std::atoi(result[i].c_str());
     }
   }
-  phmap::BinaryInputArchive ar_in("/home/asellerg/data/buckets.bin");
-  printf("\nLoading phmap.\n");
-  cache.phmap_load(ar_in);
-  printf("Loaded phmap: %ld.\n", cache.size());
+  phmap::BinaryInputArchive preflop_flop_turn_in("/home/asellerg/data/preflop_flop_turn_buckets.bin");
+  printf("\nLoading preflop/flop/turn phmap.\n");
+  preflop_flop_turn_buckets.phmap_load(preflop_flop_turn_in);
+  printf("Loaded phmap: %ld.\n", preflop_flop_turn_buckets.size());
+  phmap::BinaryInputArchive river_in("/home/asellerg/data/river_buckets.bin");
+  printf("\nLoading river phmap.\n");
+  river_buckets.phmap_load(river_in);
+  printf("Loaded phmap: %ld.\n", river_buckets.size());
 }
 
 void PureCfrMachine::do_iteration( rng_state_t &rng, int64_t num_iterations )
@@ -163,19 +173,22 @@ void PureCfrMachine::do_iteration( rng_state_t &rng, int64_t num_iterations )
   }
 }
 
-int PureCfrMachine::write_dump( const char *dump_prefix,
+int PureCfrMachine::write_dump( const char *dump_prefix, intmax_t iterations_complete,
 				const bool do_regrets ) const
 {
 
   if( do_average ) {
     /* Dump avg strategy */
 
-    try {
-      std::ofstream out("/home/asellerg/data/avg_strategy.data");
-      for (auto const& entry : avg_strategy_dict) {
+    try { 
+      char filename[256];
+      snprintf(filename, sizeof(filename), "/sda/open_pure_cfr/avg_strategy/%jd.data", iterations_complete);
+      std::ofstream out(filename);
+      for (auto& entry : avg_strategy_dict) {
         out << entry.first << ":";
         std::map<std::string, float> local_strategy_dict = {{"fold", 0.}, {"call", 0.}, {"raise 0.33", 0.}, {"raise 0.5", 0.}, {"raise 0.66", 0.}, {"raise 1", 0.}, {"raise all", 0.}};
-        for (auto const& sub_entry : entry.second) {
+        for (auto& sub_entry : entry.second) {
+          // sub_entry.second = int(float(sub_entry.second) * (float(iterations_complete) / 2E8) / ((float(iterations_complete) / 2E8) + 1));
           local_strategy_dict[sub_entry.first] += sub_entry.second;
         }
         for (auto const& local_strategy : local_strategy_dict) {
@@ -227,7 +240,7 @@ int PureCfrMachine::generate_hand( hand_t &hand, rng_state_t &rng )
   dealCards( ag.game, &rng, &state );
   memcpy( hand.board_cards, state.boardCards,
 	  MAX_BOARD_CARDS * sizeof( hand.board_cards[ 0 ] ) );
-  for( int p = 0; p < MAX_PURE_CFR_PLAYERS; ++p ) {
+  for( int p = 0; p < ag.game->numPlayers; ++p ) {
     memcpy( hand.hole_cards[ p ], state.holeCards[ p ],
 	    MAX_HOLE_CARDS * sizeof( hand.hole_cards[ 0 ] ) );
   }
@@ -238,7 +251,7 @@ int PureCfrMachine::generate_hand( hand_t &hand, rng_state_t &rng )
   }
 
   /* Rank the hands */
-  int ranks[ MAX_PURE_CFR_PLAYERS ];
+  int ranks[ ag.game->numPlayers ];
   int top_rank = -1;
   int num_ties = 1;;
   /* State must be in the final round for rankHand to work properly */
@@ -272,14 +285,14 @@ int PureCfrMachine::generate_hand( hand_t &hand, rng_state_t &rng )
     break;
 
   case 6:
-    for (int i = 0; i < (1 << MAX_PURE_CFR_PLAYERS); i++) {
+    for (int i = 0; i < (1 << 6); i++) {
       std::set<int8_t> not_folded;
-      for( int p = 0; p < MAX_PURE_CFR_PLAYERS; ++p ) {
+      for( int p = 0; p < 6; ++p ) {
         if (i & 1 << p) {
           not_folded.insert(p);
         }
       }
-      for( int p = 0; p < MAX_PURE_CFR_PLAYERS; ++p ) {
+      for( int p = 0; p < 6; ++p ) {
         if (!not_folded.count(p)) {
           hand.eval.pot_frac_recip[ p ][ i ] = INT_MAX;
         } else if (not_folded.size() == 1) {
@@ -314,18 +327,14 @@ int PureCfrMachine::walk_pure_cfr( const int position,
            std::string history_str )
 {
   int retval = 0;
-
   if( ( cur_node->get_child( ) == NULL )
       || cur_node->did_player_fold( position ) ) {
     /* Game over, calculate utility */
-    
     retval = cur_node->evaluate( hand, position );
     return retval;
   }
-
   /* Grab some values that will be used often */
   int num_choices = cur_node->get_num_choices( );
-
   std::vector<uint16_t> allowed_actions;
   if (allowed_actions_cache.count(cur_node->action_mask)) {
     allowed_actions = allowed_actions_cache[cur_node->action_mask];
@@ -337,7 +346,6 @@ int PureCfrMachine::walk_pure_cfr( const int position,
     }
     allowed_actions_cache[cur_node->action_mask] = allowed_actions;
   }
-
   int8_t player = cur_node->get_player( );
   int8_t round = cur_node->get_round( );
   int64_t soln_idx = cur_node->get_soln_idx( );
@@ -347,13 +355,13 @@ int PureCfrMachine::walk_pure_cfr( const int position,
     bucket = hand.precomputed_buckets[ player ][ round ];
   } else {
     bucket = ag.card_abs->get_bucket( ag.game, cur_node, hand.board_cards,
-				      hand.hole_cards, &cache);
+				      hand.hole_cards, &preflop_flop_turn_buckets, &river_buckets);
   }
   std::string info_set = std::to_string(bucket);
-
   int choice;
   uint64_t pos_regrets[ num_choices ] = {0};
   uint64_t sum_pos_regrets = 0;
+
   sum_pos_regrets
     = regrets[ round ]->get_pos_values( bucket,
 					soln_idx,
@@ -369,6 +377,7 @@ int PureCfrMachine::walk_pure_cfr( const int position,
       }
     }
     sum_pos_regrets = 0;
+
     if (preflop_strategy.count(info_set)) {
       for (int j = 0; j < num_choices; j++) {
         pos_regrets[j] = preflop_strategy[info_set][allowed_actions[j]];
@@ -376,7 +385,9 @@ int PureCfrMachine::walk_pure_cfr( const int position,
       }
 
     } else {
-      std::cout << "info_set: " + info_set + "\taction_mask: " + std::to_string(cur_node->action_mask) + "\n";
+      pos_regrets[0] = 1;
+      sum_pos_regrets++;
+      // std::cout << "info_set: " + info_set + "\taction_mask: " + std::to_string(cur_node->action_mask) + "\n";
     }
   }
 
@@ -394,7 +405,6 @@ int PureCfrMachine::walk_pure_cfr( const int position,
       soln_idx,
       num_choices,
       local_regrets);
-
   /* Purify the current strategy so that we always take choice */
   uint64_t dart = genrand_int32( &rng ) % sum_pos_regrets;
   for( ; choice < num_choices; choice++ ) {
@@ -409,13 +419,12 @@ int PureCfrMachine::walk_pure_cfr( const int position,
   }
   
   const BettingNode *child = cur_node->get_child( );
-  int num_active = MAX_PURE_CFR_PLAYERS;
-  for (int p = 0; p < MAX_PURE_CFR_PLAYERS; p++) {
+  int num_active = ag.game->numPlayers;
+  for (int p = 0; p < ag.game->numPlayers; p++) {
     if (cur_node->did_player_fold(p)) {
       num_active -= 1;
     }
   }
-
   if( player != position ) {
     /* Opponent's node. Recurse down the single choice. */
 
@@ -453,13 +462,14 @@ int PureCfrMachine::walk_pure_cfr( const int position,
         values[ c ] = 0;
         child = child->get_sibling( );
         continue;
-      } else if (local_regrets[c] < -300000000) {
-        if (genrand_real1(&rng) < 0.95) {
-          values[ c ] = 0;
-          child = child->get_sibling( );
-          continue;
-        }
       }
+      // else if (local_regrets[c] < -300000000) {
+      //   if (genrand_real1(&rng) < 0.95) {
+      //     values[ c ] = 0;
+      //     child = child->get_sibling( );
+      //     continue;
+      //   }
+      // }
       curr = history;
       auto all_curr = all_history;
       curr.push_back(allowed_actions[c]);
@@ -478,6 +488,8 @@ int PureCfrMachine::walk_pure_cfr( const int position,
         curr_history_str.append(action_abbrevs[allowed_actions[c]]);
       }
       auto v = walk_pure_cfr( position, child, hand, rng, all_curr, round, num_iterations, curr_history_str );
+      // auto discount_factor = (float(num_iterations) / 2E8) / ((float(num_iterations / 2E8)) + 1);
+      // v = int(float(v) * discount_factor);
       vo += probs[ c ] * v;
       values[ c ] = v;
       child = child->get_sibling( );

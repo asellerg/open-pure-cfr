@@ -291,6 +291,8 @@ pure_cfr_entry_type_t Entries_der<T>::get_entry_type( ) const
     return TYPE_UINT8_T;
   } else if( typeid( T ) == typeid( int ) ) {
     return TYPE_INT;
+  } else if( typeid( T ) == typeid( int16_t ) ) {
+    return TYPE_INT16_T;
   } else if( typeid( T ) == typeid( uint32_t ) ) {
     return TYPE_UINT32_T;
   } else if( typeid( T ) == typeid( uint64_t ) ) {

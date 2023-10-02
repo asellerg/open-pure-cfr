@@ -299,7 +299,7 @@ void run_iterations( Parameters &params, PureCfrMachine &pcm )
       print_player_file( params, filename );
 
       fprintf( stderr, "Checkpointing files with prefix [%s]... ", filename );
-      pcm.write_dump( filename );
+      pcm.write_dump( filename, iterations_complete );
       fprintf( stderr, "done!\n" );
 
       /* Unpause the threads */

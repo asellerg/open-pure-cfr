@@ -46,7 +46,8 @@ InfoSetNode2p::InfoSetNode2p( const int64_t new_soln_idx,
 			      const int new_num_choices,
 			      const int8_t new_player,
 			      const int8_t new_round,
-			      const BettingNode *new_child )
+			      const BettingNode *new_child,
+            uint16_t new_action_mask )
   : BettingNode( ),
     soln_idx( new_soln_idx ),
     num_choices( new_num_choices ),
@@ -54,6 +55,7 @@ InfoSetNode2p::InfoSetNode2p( const int64_t new_soln_idx,
     round( new_round ),
     child( new_child )
 {
+    action_mask = new_action_mask;
 }
 
 InfoSetNode2p::~InfoSetNode2p( )
@@ -76,7 +78,7 @@ TerminalNode6p::~TerminalNode6p( )
 int TerminalNode6p::evaluate( const hand_t &hand, const int position ) const
 {
   uint16_t pot_size = 0;
-  for (int i = 0; i < MAX_PURE_CFR_PLAYERS; i++) {
+  for (int i = 0; i < 6; i++) {
     pot_size += money_spent[i];
   }
   // printf("position: %d, pot_frac_recip: %d\t", position, hand.eval.pot_frac_recip[ position ][ leaf_type ]);
@@ -159,8 +161,8 @@ BettingNode *init_betting_tree_r( State &state,
     }
 
     case 6: {
-      uint16_t money_spent[ MAX_PURE_CFR_PLAYERS ];
-      for (int p = 0; p < MAX_PURE_CFR_PLAYERS; p++) {
+      uint16_t money_spent[ 6 ];
+      for (int p = 0; p < 6; p++) {
         money_spent[ p ] = state.spent[ p ];
       }
       leaf_type_t leaf_type;
@@ -222,16 +224,16 @@ BettingNode *init_betting_tree_r( State &state,
   case 2:
     node = new InfoSetNode2p( soln_idx, num_choices,
 			      currentPlayer( game, &state ),
-			      state.round, first_child ); 
+			      state.round, first_child, action_mask ); 
     break;
 
   case 6:
     /* We need some additional values not needed in 2p games */
-    int8_t player_folded[ MAX_PURE_CFR_PLAYERS ];
+    int8_t player_folded[ 6 ];
     for( int p = 0; p < game->numPlayers; ++p ) {
       player_folded[ p ] = ( state.playerFolded[ p ] ? 1 : 0 );
     }
-    uint16_t money_spent[ MAX_PURE_CFR_PLAYERS ];
+    uint16_t money_spent[ 6 ];
     leaf_type_t leaf_type;
     get_term_values_6p( state, game, &leaf_type );
     

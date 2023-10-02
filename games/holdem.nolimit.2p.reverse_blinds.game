@@ -2,8 +2,8 @@ GAMEDEF
 nolimit
 numPlayers = 2
 numRounds = 4
-stack = 10000 10000
-blind = 100 50
+stack = 100 100
+blind = 2 1
 firstPlayer = 2 1 1 1
 maxRaises = 3 3 3 3
 numSuits = 4

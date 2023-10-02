@@ -15,6 +15,8 @@ BUCKETS_FILES = buckets.cpp /usr/local/redis-plus-plus/lib/libredis++.a /usr/loc
 
 BUCKETS_SPANNER_FILES = buckets_spanner.cpp /home/asellerg/miniconda3/envs/epicac/lib/libgoogle_cloud* /home/asellerg/miniconda3/envs/epicac/lib/libproto* /usr/local/redis-plus-plus/lib/libredis++.a /usr/local/lib/libhiredis.a /home/asellerg/XPokerEval/XPokerEval.CactusKev/mtrand.o /home/asellerg/XPokerEval/XPokerEval.CactusKev/pokerlib.o
 
+BUCKETS_TEXT_FILES = buckets_text.cpp /home/asellerg/miniconda3/envs/epicac/lib/libgoogle_cloud* /home/asellerg/miniconda3/envs/epicac/lib/libproto* /usr/local/redis-plus-plus/lib/libredis++.a /usr/local/lib/libhiredis.a /home/asellerg/XPokerEval/XPokerEval.CactusKev/mtrand.o /home/asellerg/XPokerEval/XPokerEval.CactusKev/pokerlib.o
+
 WRITE_CLUSTERS_FILES = write_clusters.cpp /usr/local/redis-plus-plus/lib/libredis++.a /usr/local/lib/libhiredis.a
 
 LOOKUP_BUCKETS_FILES = lookup_buckets.cpp
@@ -39,6 +41,9 @@ buckets: $(BUCKETS_FILES)
 
 buckets_spanner: $(BUCKETS_SPANNER_FILES)
 	$(CXX) $(OPT) -pthread -lhiredis -lredis++ -mcmodel=medium -o $@ $(BUCKETS_SPANNER_FILES)
+
+buckets_text: $(BUCKETS_TEXT_FILES)
+	$(CXX) $(OPT) -pthread -lhiredis -lredis++ -mcmodel=medium -o $@ $(BUCKETS_TEXT_FILES)
 
 write_clusters: $(WRITE_CLUSTERS_FILES)
 	$(CXX) $(OPT) -pthread -lhiredis -lredis++ -mcmodel=medium -o $@ $(WRITE_CLUSTERS_FILES)

@@ -71,6 +71,15 @@ Entries *new_loaded_entries( const size_t num_entries_per_bucket,
     break;
   }
 
+  case TYPE_INT16_T: {
+    int16_t *int16_t_data = ( int16_t * ) ( *data );
+    entries = new Entries_der<int16_t>( num_entries_per_bucket, total_num_entries,
+            int16_t_data );
+    int16_t_data += total_num_entries;
+    ( *data ) = ( void * ) int16_t_data;
+    break;
+  }
+
   case TYPE_UINT16_T: {
     uint16_t *uint16_t_data = ( uint16_t * ) ( *data );
     entries = new Entries_der<uint16_t>( num_entries_per_bucket,

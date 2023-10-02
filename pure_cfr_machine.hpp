@@ -32,10 +32,10 @@ public:
   PureCfrMachine( const Parameters &params );
   ~PureCfrMachine( );
 
-  void do_iteration( rng_state_t &rng, int64_t num_iterations );
+  void do_iteration( rng_state_t &rng, intmax_t num_iterations );
   
   /* Returns 0 on success, 1 on failure, -1 on warning */
-  int write_dump( const char *dump_prefix, const bool do_regrets = true ) const;
+  int write_dump( const char *dump_prefix, intmax_t iterations_complete, const bool do_regrets = true ) const;
   int load_dump( const char *dump_prefix );
   void load_phmap();
 

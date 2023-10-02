@@ -78,7 +78,8 @@ public:
 		 const int new_num_choices,
 		 const int8_t new_player,
 		 const int8_t new_round,
-		 const BettingNode *new_child );
+		 const BettingNode *new_child,
+     uint16_t new_action_mask );
   virtual ~InfoSetNode2p( );
 
   virtual int64_t get_soln_idx( ) const { return soln_idx; }

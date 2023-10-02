@@ -143,7 +143,7 @@ int FcpaActionAbstraction::get_actions( const Game *game,
 	  ++num_actions;
 	  *action_mask |= (1 << 4);
 	}
-	if( state.round == 0 && pot_raise_size < max_raise_size ) {
+	if( state.round == 0 && pot_raise_size < max_raise_size && anyRaises(&state)) {
 	  actions[ num_actions ] = action;
 	  actions[ num_actions ].size = pot_raise_size;
 	  ++num_actions;
@@ -167,9 +167,11 @@ int FcpaActionAbstraction::get_actions( const Game *game,
           ++num_actions;
 	}
       } else {
-      	*action_mask |= (1 << 1);
-        actions[ num_actions ] = action;
-        ++num_actions;
+      	// if (state.round > 0 || state.numActions[ state.round ] > 0) {
+	      	*action_mask |= (1 << 1);
+	        actions[ num_actions ] = action;
+	        ++num_actions;
+	      // }
       }
     }
   }

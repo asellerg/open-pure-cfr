@@ -21,7 +21,7 @@ using namespace sw::redis;
 namespace spanner = ::google::cloud::spanner;
 
 std::atomic<uint64_t> num_keys;
-std::atomic<uint64_t> num_spanner_mutations;
+std::atomic<uint64_t> num_writes;
 
 std::vector<std::string> split(const std::string& str, char delimiter) {
   std::vector<std::string> tokens;
@@ -39,13 +39,13 @@ std::vector<std::string> split(const std::string& str, char delimiter) {
 }
 
 void _write_keys(int filename) {
-  auto client = spanner::Client(spanner::MakeConnection(spanner::Database("epicac", "prod", "trial_69")));
-
+  auto redis = Redis("unix:///run/redis.sock/2");
   int k = 0;
   std::ifstream infile("/sda/open_pure_cfr/avg_strategy/split/" + std::to_string(filename));
   std::string line;
   std::string colon = ":";
   std::vector<spanner::Mutation> mutations;
+  auto pipeline = redis.pipeline();
   while (std::getline(infile, line)) {
     auto delimiter = line.find(colon);
     std::string key_str = line.substr(0, delimiter);
@@ -56,23 +56,21 @@ void _write_keys(int filename) {
       auto val = vals[r];
       strategy.push_back(std::stof(val));
     }
-    std::swap(strategy[0], strategy[1]);
-    mutations.push_back(spanner::InsertOrUpdateMutationBuilder(
-        "strategy", {"info_set", "strategy"})
-        .EmplaceRow(key_str, strategy)
-        .Build());
+    std::map<std::string, double> local_strategy_dict = {{"fold", 0.}, {"call", 0.}, {"raise 0.33", 0.}, {"raise 0.5", 0.}, {"raise 0.66", 0.}, {"raise 1", 0.}, {"raise all", 0.}};
+    int i = 0;
+    for (auto& entry : local_strategy_dict) {
+      entry.second = strategy[i];
+      i++;
+    }
+
+    pipeline.hmset(key_str, local_strategy_dict.begin(), local_strategy_dict.end());
     k++;
     if (k > 5000) {
-      auto commit_result = client.Commit(spanner::Mutations(std::move(mutations)));
-
-      if (!commit_result or !commit_result.ok()) {
-        std::cerr << "Error writing data to Spanner: " << commit_result.status() << "\n";
-        return;
-      } else {
-        num_spanner_mutations.store(num_spanner_mutations.load() + k);
-      }
+      pipeline.exec();
+      num_writes.store(num_writes.load() + k);
+      pipeline = redis.pipeline();
       k = 0;
-      printf("%ld Spanner mutations.\n", num_spanner_mutations.load());
+      printf("%ld redis writes.\n", num_writes.load());
     }
 
   }
@@ -82,7 +80,7 @@ void _write_keys(int filename) {
 
 int main( const int argc, const char *argv[] )
 {
-  num_spanner_mutations.store(0);
+  num_writes.store(0);
   auto num_threads = 128;
   std::vector<std::thread> threads(num_threads);
   auto start = high_resolution_clock::now();
