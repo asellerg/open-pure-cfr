@@ -52,9 +52,14 @@ void _write_keys(int filename) {
     std::string value_str = line.substr(delimiter + 1);
     auto vals = split(value_str, ',');
     std::vector<double> strategy;
+    auto total = 0.;
     for (int r = 0; r < vals.size() - 1; r++) {
-      auto val = vals[r];
-      strategy.push_back(std::stof(val));
+      auto val = std::stof(vals[r]);
+      total += val;
+      strategy.push_back(val);
+    }
+    if (total <= 100.) {
+      continue;
     }
     std::swap(strategy[0], strategy[1]);
     mutations.push_back(spanner::InsertOrUpdateMutationBuilder(
@@ -76,7 +81,8 @@ void _write_keys(int filename) {
     }
 
   }
-
+  // Write the leftovers.
+  client.Commit(spanner::Mutations(std::move(mutations)));
 }
 
 

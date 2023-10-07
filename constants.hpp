@@ -145,36 +145,6 @@ AVG_STRATEGY_TYPES[ MAX_ROUNDS ];
 template <class K, class V>
 using HashT      = MAPNAME<K, V EXTRAARGS>;
 
-// Enumerations to represent the rank and suit of a card.
-enum class Rank {
-    TWO, THREE, FOUR, FIVE, SIX, SEVEN, EIGHT,
-    NINE, TEN, JACK, QUEEN, KING, ACE
-};
-
-enum class Suit {
-    CLUBS, DIAMONDS, HEARTS, SPADES
-};
-
-struct Card {
-    unsigned int value : 6;  // 6 bits can represent values from 0 to 63.
-
-    void set(Rank rank, Suit suit) {
-        value = static_cast<int>(suit) * 13 + static_cast<int>(rank);
-    }
-
-    Rank getRank() const {
-        return static_cast<Rank>(value % 13);
-    }
-
-    Suit getSuit() const {
-        return static_cast<Suit>(value / 13);
-    }
-};
-
-struct Hand {
-    Card cards[7];
-};
-
 using hash_t     = HashT<uint64_t, uint16_t>;
 
 #endif
