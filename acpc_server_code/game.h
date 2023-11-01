@@ -258,6 +258,8 @@ int printCards( const int numCards, const uint8_t *cards,
 
 int anyRaises( const State *state);
 
+int anyActions( const State *state);
+
 #define rankOfCard( card ) ((card)/MAX_SUITS)
 #define suitOfCard( card ) ((card)%MAX_SUITS)
 #define makeCard( rank, suit ) ((rank)*MAX_SUITS+(suit))

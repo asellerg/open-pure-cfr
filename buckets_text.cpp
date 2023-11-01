@@ -56,7 +56,7 @@ void _write_keys(int filename) {
       auto val = vals[r];
       strategy.push_back(std::stof(val));
     }
-    std::map<std::string, double> local_strategy_dict = {{"fold", 0.}, {"call", 0.}, {"raise 0.33", 0.}, {"raise 0.5", 0.}, {"raise 0.66", 0.}, {"raise 1", 0.}, {"raise all", 0.}};
+    std::map<std::string, double> local_strategy_dict = {{"fold", 0.}, {"call", 0.}, {"raise 0.33", 0.}, {"raise 0.5", 0.}, {"raise 0.66", 0.}, {"raise 1", 0.}, {"raise 1.3", 0.}, {"raise all", 0.}};
     int i = 0;
     for (auto& entry : local_strategy_dict) {
       entry.second = strategy[i];
@@ -65,7 +65,7 @@ void _write_keys(int filename) {
 
     pipeline.hmset(key_str, local_strategy_dict.begin(), local_strategy_dict.end());
     k++;
-    if (k > 5000) {
+    if (k > 1) {
       pipeline.exec();
       num_writes.store(num_writes.load() + k);
       pipeline = redis.pipeline();

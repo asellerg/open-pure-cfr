@@ -99,6 +99,15 @@ int FcpaActionAbstraction::get_actions( const Game *game,
   assert( MAX_ABSTRACT_ACTIONS >= 8 );
   
   int num_actions = 0;
+	// if (state.round == 1 && !anyActions(&state)) {
+  //   Action action;
+  //   action.type = ( ActionType ) 1;
+  //   action.size = 0;
+	// 	*action_mask |= (1 << 1);
+  //   actions[ num_actions ] = action;
+  //   ++num_actions;
+  //   return num_actions;
+	// }
   for( int a = 0; a < NUM_ACTION_TYPES; ++a ) {
     Action action;
     action.type = ( ActionType ) a;
@@ -124,14 +133,15 @@ int FcpaActionAbstraction::get_actions( const Game *game,
 	int one_third_pot_raise_size = int(0.33 * pot) + ( state.spent[ player ] + amount_to_call );
 	int half_pot_raise_size = int(0.5 * pot) + ( state.spent[ player ] + amount_to_call );
 	int two_thirds_pot_raise_size = int(0.66 * pot) + ( state.spent[ player ] + amount_to_call );
+	int overbet_raise_size = int(1.3 * pot) + ( state.spent[ player ] + amount_to_call );
 	// int three_quarters_pot_raise_size = int(0.75 * pot) + ( state.spent[ player ] + amount_to_call );
-	if( one_third_pot_raise_size >= min_raise_size && one_third_pot_raise_size < max_raise_size && state.round != 0 && !anyRaises(&state)) {
+	if( one_third_pot_raise_size >= min_raise_size && one_third_pot_raise_size < max_raise_size && state.round != 0) {
 	  actions[ num_actions ] = action;
 	  actions[ num_actions ].size = one_third_pot_raise_size;
 	  ++num_actions;
 	  *action_mask |= (1 << 2);
 	}
-	if( half_pot_raise_size < max_raise_size && ((state.round == 0 && !anyRaises(&state)) || (state.round != 0 && anyRaises(&state)))) {
+	if( half_pot_raise_size < max_raise_size && ((state.round != 0 && anyRaises(&state)))) {
 	  actions[ num_actions ] = action;
 	  actions[ num_actions ].size = half_pot_raise_size;
 	  ++num_actions;
@@ -143,35 +153,39 @@ int FcpaActionAbstraction::get_actions( const Game *game,
 	  ++num_actions;
 	  *action_mask |= (1 << 4);
 	}
-	if( state.round == 0 && pot_raise_size < max_raise_size && anyRaises(&state)) {
+	if( pot_raise_size < max_raise_size && (state.round == 0 || anyRaises(&state))) {
 	  actions[ num_actions ] = action;
 	  actions[ num_actions ].size = pot_raise_size;
 	  ++num_actions;
 	  *action_mask |= (1 << 5);
 	}
-	if (state.round != 0 && (anyRaises(&state) || ((10000 - state.spent[player]) < (3 * pot)))) {
+	if( state.round != 0 && overbet_raise_size < max_raise_size && !anyRaises(&state)) {
+	  actions[ num_actions ] = action;
+	  actions[ num_actions ].size = overbet_raise_size;
+	  ++num_actions;
+	  *action_mask |= (1 << 6);
+	}
+	if (state.round == 0 || (anyRaises(&state) || ((200 - state.spent[player]) < (3 * pot)))) {
 		/* Now add all-in */
 		actions[ num_actions ] = action;
 		actions[ num_actions ].size = max_raise_size;
 		++num_actions;
-		*action_mask |= (1 << 6);
+		*action_mask |= (1 << 7);
 	}
       }
 	
     } else if( isValidAction( game, &state, 0, &action ) ) {
       /* Fold and call */
       if (action.type == 0) {
-	if (anyRaises(&state)) {
+	if (state.round == 0 || anyRaises(&state)) {
       	  *action_mask |= 1;
 	  actions[ num_actions ] = action;
           ++num_actions;
 	}
       } else {
-      	// if (state.round > 0 || state.numActions[ state.round ] > 0) {
-	      	*action_mask |= (1 << 1);
-	        actions[ num_actions ] = action;
-	        ++num_actions;
-	      // }
+      	*action_mask |= (1 << 1);
+        actions[ num_actions ] = action;
+        ++num_actions;
       }
     }
   }

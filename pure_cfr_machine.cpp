@@ -33,17 +33,17 @@ extern "C" {
 
 hash_t cache;
 
-std::unordered_map<int, std::string> action_abbrevs = {{0, "f"}, {1, "c"}, {2, "r0.33"}, {3, "r0.5"}, {4, "r0.66"}, {5, "r1"}, {6, "rall"}};
+std::unordered_map<int, std::string> action_abbrevs = {{0, "f"}, {1, "c"}, {2, "r0.33"}, {3, "r0.5"}, {4, "r0.66"}, {5, "r1"}, {6, "r1.3"}, {7, "rall"}};
 
 std::unordered_map<int, std::string> round_abbrevs = {{0, "|p|"}, {1, "|f|"}, {2, "|t|"}, {3, "|r|"}};
 
 HashT<std::string, std::map<std::string, uint32_t>> avg_strategy_dict;
 
-std::unordered_map<std::string, uint64_t[ 4 ]> preflop_strategy;
+std::unordered_map<std::string, uint64_t[ MAX_ABSTRACT_ACTIONS ]> preflop_strategy;
 
 std::unordered_map<uint16_t, std::vector<uint16_t>> allowed_actions_cache;
 
-std::vector<std::string> ordered_actions = {"fold", "call", "raise 0.33", "raise 0.5", "raise 0.66", "raise 1", "raise all"};
+std::vector<std::string> ordered_actions = {"fold", "call", "raise 0.33", "raise 0.5", "raise 0.66", "raise 1", "raise 1.3", "raise all"};
 
 void increment_average_strategy(int bucket, std::string history_str, std::vector<uint16_t> allowed_actions, int choice) {
   auto key = std::to_string(bucket);
@@ -129,7 +129,7 @@ PureCfrMachine::~PureCfrMachine( )
 void PureCfrMachine::load_phmap()
 {
 
-  std::ifstream infile("/home/asellerg/open-pure-cfr/preflop_strategy.txt");
+  std::ifstream infile("/home/asellerg/open-pure-cfr/preflop_strategy_gto_wizard.txt");
   std::string line;
   std::string space = " ";
   std::string comma = ",";
@@ -143,8 +143,12 @@ void PureCfrMachine::load_phmap()
        getline(s_stream, substr, ','); //get first string delimited by comma
        result.push_back(substr);
     }
-    for (int i = 0; i < 4; i++) {
-      preflop_strategy[info_set_str][i] = std::atoi(result[i].c_str());
+    int j = 0;
+    for (int i = 0; i < MAX_ABSTRACT_ACTIONS; i++) {
+      if (i == 0 || i == 1 || i == 5 || i == 7) {
+        preflop_strategy[info_set_str][i] = std::atoi(result[j].c_str());
+        j++;
+      }
     }
   }
   phmap::BinaryInputArchive ar_in("/home/asellerg/data/buckets.bin");
@@ -175,13 +179,12 @@ int PureCfrMachine::write_dump( const char *dump_prefix, intmax_t iterations_com
 
     try { 
       char filename[256];
-      snprintf(filename, sizeof(filename), "/home/asellerg/open_pure_cfr/avg_strategy/%jd.data", iterations_complete);
+      snprintf(filename, sizeof(filename), "/sda/open_pure_cfr/avg_strategy/%jd.data", iterations_complete);
       std::ofstream out(filename);
       for (auto& entry : avg_strategy_dict) {
         out << entry.first << ":";
-        std::map<std::string, float> local_strategy_dict = {{"fold", 0.}, {"call", 0.}, {"raise 0.33", 0.}, {"raise 0.5", 0.}, {"raise 0.66", 0.}, {"raise 1", 0.}, {"raise all", 0.}};
+        std::map<std::string, float> local_strategy_dict = {{"fold", 0.}, {"call", 0.}, {"raise 0.33", 0.}, {"raise 0.5", 0.}, {"raise 0.66", 0.}, {"raise 1", 0.}, {"raise 1.3", 0.}, {"raise all", 0.}};
         for (auto& sub_entry : entry.second) {
-          // sub_entry.second = int(float(sub_entry.second) * (float(iterations_complete) / 2E8) / ((float(iterations_complete) / 2E8) + 1));
           local_strategy_dict[sub_entry.first] += sub_entry.second;
         }
         for (auto const& local_strategy : local_strategy_dict) {
@@ -372,10 +375,14 @@ int PureCfrMachine::walk_pure_cfr( const int position,
     sum_pos_regrets = 0;
 
     if (preflop_strategy.count(info_set)) {
+      // std::cout << "Found num_choices: " << num_choices << ", info_set: " << info_set << ", regrets: ";
       for (int j = 0; j < num_choices; j++) {
         pos_regrets[j] = preflop_strategy[info_set][allowed_actions[j]];
         sum_pos_regrets += pos_regrets[j];
+        // std::cout << allowed_actions[j] << ",";
+        // std::cout << pos_regrets[j] << ",";
       }
+      // std::cout << "\n";
 
     } else {
       pos_regrets[0] = 1;
@@ -418,6 +425,9 @@ int PureCfrMachine::walk_pure_cfr( const int position,
       num_active -= 1;
     }
   }
+  if (round == 1 && num_active != 2) {
+    return retval;
+  }
   if( player != position ) {
     /* Opponent's node. Recurse down the single choice. */
 
@@ -456,13 +466,6 @@ int PureCfrMachine::walk_pure_cfr( const int position,
         child = child->get_sibling( );
         continue;
       }
-      // else if (local_regrets[c] < -300000000) {
-      //   if (genrand_real1(&rng) < 0.95) {
-      //     values[ c ] = 0;
-      //     child = child->get_sibling( );
-      //     continue;
-      //   }
-      // }
       curr = history;
       auto all_curr = all_history;
       curr.push_back(allowed_actions[c]);
@@ -481,8 +484,6 @@ int PureCfrMachine::walk_pure_cfr( const int position,
         curr_history_str.append(action_abbrevs[allowed_actions[c]]);
       }
       auto v = walk_pure_cfr( position, child, hand, rng, all_curr, round, num_iterations, curr_history_str );
-      // auto discount_factor = (float(num_iterations) / 2E8) / ((float(num_iterations / 2E8)) + 1);
-      // v = int(float(v) * discount_factor);
       vo += probs[ c ] * v;
       values[ c ] = v;
       child = child->get_sibling( );

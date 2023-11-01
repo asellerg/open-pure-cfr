@@ -854,6 +854,14 @@ int anyRaises(const State *curState) {
   return 0;
 }
 
+int anyActions(const State *curState) {
+  uint8_t numActions = curState->numActions[ curState->round ];
+  if (numActions > 0) {
+    return 1;
+  }
+  return 0;
+}
+
 int isValidAction( const Game *game, const State *curState,
        const int tryFixing, Action *action )
 {
