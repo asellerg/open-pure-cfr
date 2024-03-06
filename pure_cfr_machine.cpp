@@ -37,26 +37,16 @@ std::unordered_map<int, std::string> action_abbrevs = {{0, "f"}, {1, "c"}, {2, "
 
 std::unordered_map<int, std::string> round_abbrevs = {{0, "|p|"}, {1, "|f|"}, {2, "|t|"}, {3, "|r|"}};
 
-HashT<std::string, std::map<std::string, uint32_t>> avg_strategy_dict;
+using AvgStrategyMap = HashT<std::string, std::map<std::string, uint64_t>>;
+AvgStrategyMap avg_strategy_dict;
 
 std::unordered_map<std::string, uint64_t[ MAX_ABSTRACT_ACTIONS ]> preflop_strategy;
 
 std::unordered_map<uint16_t, std::vector<uint16_t>> allowed_actions_cache;
 
-std::vector<std::string> ordered_actions = {"fold", "call", "raise 0.33", "raise 0.5", "raise 0.66", "raise 1", "raise 1.3", "raise all"};
+std::unordered_map<uint16_t, std::string> allowed_actions_str_cache;
 
-void increment_average_strategy(int bucket, std::string history_str, std::vector<uint16_t> allowed_actions, int choice) {
-  auto key = std::to_string(bucket);
-  key.append("/");
-  for (int i = 0; i < allowed_actions.size(); i++) {
-    key.append(action_abbrevs[allowed_actions[i]]);
-    if (i != (allowed_actions.size() - 1)) {
-      key.append(",");
-    }
-  }
-  key.append(history_str);
-  avg_strategy_dict[key][ordered_actions[choice]] += 1;
-}
+std::vector<std::string> ordered_actions = {"fold", "call", "raise 0.33", "raise 0.5", "raise 0.66", "raise 1", "raise 1.3", "raise all"};
 
 
 PureCfrMachine::PureCfrMachine( const Parameters &params )
@@ -85,6 +75,11 @@ PureCfrMachine::PureCfrMachine( const Parameters &params )
 
         case TYPE_INT16_T:
           regrets[ r ] = new Entries_der<int16_t>( num_entries_per_bucket[ r ],
+                       total_num_entries[ r ] );
+          break;
+
+        case TYPE_INT8_T:
+          regrets[ r ] = new Entries_der<int8_t>( num_entries_per_bucket[ r ],
                        total_num_entries[ r ] );
           break;
 
@@ -166,7 +161,9 @@ void PureCfrMachine::do_iteration( rng_state_t &rng, int64_t num_iterations )
   }
   for( int p = 0; p < ag.game->numPlayers; ++p ) {
     std::unordered_map<int8_t, std::vector<int8_t>> all_history;
-    walk_pure_cfr( p, ag.betting_tree_root, hand, rng, all_history, 0, num_iterations, "" );
+    char history_str[1024] = {'\0'};
+    uint64_t dart = genrand_int32(&rng);
+    walk_pure_cfr( p, ag.betting_tree_root, hand, rng, all_history, 0, num_iterations, history_str, 0, dart );
   }
 }
 
@@ -176,7 +173,6 @@ int PureCfrMachine::write_dump( const char *dump_prefix, intmax_t iterations_com
 
   if( do_average ) {
     /* Dump avg strategy */
-
     try { 
       char filename[256];
       snprintf(filename, sizeof(filename), "/sda/open_pure_cfr/avg_strategy/%jd.data", iterations_complete);
@@ -320,13 +316,25 @@ int PureCfrMachine::walk_pure_cfr( const int position,
            std::unordered_map<int8_t, std::vector<int8_t>> all_history,
            int8_t prev_round,
            int64_t num_iterations,
-           std::string history_str )
+           char *history_str,
+           int last_char,
+	         uint64_t dart )
 {
   int retval = 0;
   if( ( cur_node->get_child( ) == NULL )
       || cur_node->did_player_fold( position ) ) {
     /* Game over, calculate utility */
     retval = cur_node->evaluate( hand, position );
+    return retval;
+  }
+  int num_active = ag.game->numPlayers;
+  for (int p = 0; p < ag.game->numPlayers; p++) {
+    if (cur_node->did_player_fold(p)) {
+      num_active -= 1;
+    }
+  }
+  int8_t round = cur_node->get_round( );
+  if (round == 1 && num_active > 2) {
     return retval;
   }
   /* Grab some values that will be used often */
@@ -343,7 +351,6 @@ int PureCfrMachine::walk_pure_cfr( const int position,
     allowed_actions_cache[cur_node->action_mask] = allowed_actions;
   }
   int8_t player = cur_node->get_player( );
-  int8_t round = cur_node->get_round( );
   int64_t soln_idx = cur_node->get_soln_idx( );
   auto history = all_history[round];
   int bucket;
@@ -357,7 +364,6 @@ int PureCfrMachine::walk_pure_cfr( const int position,
   int choice;
   uint64_t pos_regrets[ num_choices ] = {0};
   uint64_t sum_pos_regrets = 0;
-
   sum_pos_regrets
     = regrets[ round ]->get_pos_values( bucket,
 					soln_idx,
@@ -375,24 +381,19 @@ int PureCfrMachine::walk_pure_cfr( const int position,
     sum_pos_regrets = 0;
 
     if (preflop_strategy.count(info_set)) {
-      // std::cout << "Found num_choices: " << num_choices << ", info_set: " << info_set << ", regrets: ";
       for (int j = 0; j < num_choices; j++) {
         pos_regrets[j] = preflop_strategy[info_set][allowed_actions[j]];
         sum_pos_regrets += pos_regrets[j];
-        // std::cout << allowed_actions[j] << ",";
-        // std::cout << pos_regrets[j] << ",";
       }
-      // std::cout << "\n";
 
     } else {
       pos_regrets[0] = 1;
       sum_pos_regrets++;
-      // std::cout << "info_set: " + info_set + "\taction_mask: " + std::to_string(cur_node->action_mask) + "\n";
     }
   }
 
   if( sum_pos_regrets == 0 ) {
-    /* No positive regret, so assume a default uniform random current strategy */
+    /* No positive regret, so assume a default uniform random current strategy. */
     for( int c = 0; c < num_choices; c++ ) {
       pos_regrets[ c ] = 1;
       sum_pos_regrets++;
@@ -405,13 +406,12 @@ int PureCfrMachine::walk_pure_cfr( const int position,
       soln_idx,
       num_choices,
       local_regrets);
-  /* Purify the current strategy so that we always take choice */
-  uint64_t dart = genrand_int32( &rng ) % sum_pos_regrets;
+  uint64_t dart_mod = dart % sum_pos_regrets;
   for( ; choice < num_choices; choice++ ) {
-    if( dart < pos_regrets[ choice ] ) {
+    if( dart_mod < pos_regrets[ choice ] ) {
       break;
     }
-    dart -= pos_regrets[ choice ];
+    dart_mod -= pos_regrets[ choice ];
   }
   double probs[ num_choices ] = {0.};
   for( int c = 0; c < num_choices; c++) {
@@ -419,83 +419,74 @@ int PureCfrMachine::walk_pure_cfr( const int position,
   }
   
   const BettingNode *child = cur_node->get_child( );
-  int num_active = ag.game->numPlayers;
-  for (int p = 0; p < ag.game->numPlayers; p++) {
-    if (cur_node->did_player_fold(p)) {
-      num_active -= 1;
+
+  int values[ num_choices ];
+  std::vector<int8_t> curr;
+  double vo = 0.;
+  if (!all_history[round].size()) {
+    history_str[last_char++] = round_abbrevs[round].c_str()[0];
+    if (round == 1) {
+      history_str[last_char++] = std::to_string(num_active).c_str()[0];
+      history_str[last_char++] = '|';
     }
   }
-  if (round == 1 && num_active != 2) {
-    return retval;
-  }
-  if( player != position ) {
-    /* Opponent's node. Recurse down the single choice. */
-
-    for( int c = 0; c < choice; ++c ) {
-      child = child->get_sibling( );
-    }
-    if (round != 0 && !all_history[round].size()) {
-      history_str.append(round_abbrevs[round]);
-      if (round == 1) {
-        history_str.append(std::to_string(num_active));
-        history_str.append("|");
-      }
-    }
-    /* Update the average strategy if we are keeping track of one */
-    if( do_average && round != 0) {
-      increment_average_strategy(bucket, history_str, allowed_actions, allowed_actions[choice]);
-    }
-    history.push_back(allowed_actions[choice]);
-    if (round != 0) {
-      if (all_history[round].size()) {
-        history_str.append(",");
-      }
-      history_str.append(action_abbrevs[allowed_actions[choice]]);
-    }
-    all_history[round] = history;
-    retval = walk_pure_cfr( position, child, hand, rng, all_history, round, num_iterations, history_str );
-  } else {
-    /* Current player's node. Recurse down all choices to get the value of each */
-
-    int values[ num_choices ];
-    std::vector<int8_t> curr;
-    double vo = 0.;
-    for( int c = 0; c < num_choices; ++c) {
-      if (round == 0 && pos_regrets[c] == 0) {
-        values[ c ] = 0;
-        child = child->get_sibling( );
-        continue;
-      }
-      curr = history;
-      auto all_curr = all_history;
-      curr.push_back(allowed_actions[c]);
-      all_curr[round] = curr;
-      auto curr_history_str = history_str;
-      if (round != 0) {
-        if (all_history[round].size()) {
-          curr_history_str.append(",");
-        } else {
-          curr_history_str.append(round_abbrevs[round]);
-          if (round == 1) {
-            curr_history_str.append(std::to_string(num_active));
-            curr_history_str.append("|");
-          }
+  /* Update the average strategy if we are keeping track of one */
+  if( do_average && round != 0 && player != position) { //  && round != 0) {
+    auto key = std::to_string(bucket);
+    key.append("/");
+    std::string allowed_actions_str;
+    if (allowed_actions_str_cache.count(cur_node->action_mask)) {
+      allowed_actions_str = allowed_actions_str_cache[cur_node->action_mask];
+    } else {
+      for (int i = 0; i < allowed_actions.size(); i++) {
+        allowed_actions_str.append(action_abbrevs[allowed_actions[i]]);
+        if (i != (allowed_actions.size() - 1)) {
+          allowed_actions_str.append(",");
         }
-        curr_history_str.append(action_abbrevs[allowed_actions[c]]);
       }
-      auto v = walk_pure_cfr( position, child, hand, rng, all_curr, round, num_iterations, curr_history_str );
-      vo += probs[ c ] * v;
-      values[ c ] = v;
+      allowed_actions_str_cache[cur_node->action_mask] = allowed_actions_str;
+    }
+    key.append(allowed_actions_str);
+    key.append(std::string(history_str));
+    avg_strategy_dict[key][ordered_actions[allowed_actions[choice]]] += 1;
+  }
+  dart_mod = dart % 100;
+  for( int c = 0; c < num_choices; ++c) {
+    if ((round == 0 && pos_regrets[c] == 0) || (dart_mod >= 0 && player != position && c != choice)) {
+      values[ c ] = 0;
       child = child->get_sibling( );
+      continue;
     }
-
-    retval = int(vo);
-
-    /* Update the regrets at the current node */
-    if (round != 0) {
-      regrets[ round ]->update_regret( bucket, soln_idx, num_choices,
-  				     values, retval );
+    curr = history;
+    auto all_curr = all_history;
+    curr.push_back(allowed_actions[c]);
+    all_curr[round] = curr;
+    char curr_history_str[1024];
+    auto curr_last_char = last_char;
+    memcpy(curr_history_str, history_str, 1024);
+    if (all_history[round].size()) {
+      curr_history_str[curr_last_char++] = ',';
     }
+    auto action_str = action_abbrevs[allowed_actions[c]].c_str();
+    for (int i = 0; i < strlen(action_str); i++) {
+      curr_history_str[curr_last_char++] = action_str[i];
+    }
+    auto v = walk_pure_cfr( position, child, hand, rng, all_curr, round, num_iterations, curr_history_str, curr_last_char, dart );
+    if (player != position && dart_mod >= 0) {
+      vo += v;
+    } else {
+      vo += v * probs[ c ];
+    }
+    values[ c ] = v;
+    child = child->get_sibling( );
+  }
+
+  retval = int(vo);
+
+  /* Update the regrets at the current node */
+  if (round != 0 && player == position) {
+    regrets[ round ]->update_regret( bucket, soln_idx, num_choices,
+				     values, retval );
   }
   
   return retval;

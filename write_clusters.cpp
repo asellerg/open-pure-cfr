@@ -10,6 +10,7 @@
 #include <thread>
 #include "constants.hpp"
 #include "parallel_hashmap/phmap_dump.h"
+#include <cassert>
 
 using namespace sw::redis;
 
@@ -32,20 +33,20 @@ std::unordered_map<char, int> ranks = {
 };
 
 std::unordered_map<char, int> suits = {
-  {'c', 3},
-  {'d', 2},
-  {'h', 1},
-  {'s', 0}
+  {'c', 2},
+  {'d', 1},
+  {'h', 0},
+  {'s', 3}
 };
 
 #define MAX_SUITS 4
 
-HashT<uint64_t, uint8_t> buckets;
+HashT<uint64_t, uint16_t> buckets;
 
 std::atomic<uint64_t> num_keys;
 
 void _process_file(std::string boards_filename) {
-  // auto redis = Redis("unix:///run/redis.sock/0");
+  auto redis = Redis("unix:///run/redis.sock/0");
   std::ifstream infile(boards_filename);
   std::string board;
   std::string space = " ";
@@ -59,36 +60,37 @@ void _process_file(std::string boards_filename) {
     boards.push(board);
   }
 
-  auto pattern = "/home/asellerg/pkmeans/assignments-500-200-200/river/" + base_match[1].str() + "/*";
+  auto pattern = "/home/asellerg/pkmeans/assignments/flop/" + base_match[1].str() + "/*";
   std::cout << pattern + "\n";
   glob(pattern.c_str(), 0, NULL, &buf);
   for (cur = buf.gl_pathv; *cur; cur++) {
     std::ifstream fp(*cur);
     std::string line;
     printf("reading %s...\n", *cur);
-    // auto pipeline = redis.pipeline();
+    auto pipeline = redis.pipeline();
     while (std::getline(fp, line)) {
       auto delimiter = line.find(space);
       std::string bucket_str = line.substr(delimiter);
       uint64_t board[7] = {0};
       auto key = boards.front().c_str();
-      uint8_t bucket = std::atoi(bucket_str.c_str());
+      uint16_t bucket = std::atoi(bucket_str.c_str());
       for (int i = 0; i < strlen(key); i+=2) {
         int rank = ranks[key[i]];
         int suit = suits[key[i+1]];
-        int card = ((rank)*MAX_SUITS+(suit));
+        int card = ((13*suit)+rank);
         board[i/2] = card + 1;
       }
       uint64_t idx = (board[0]) | (board[1] << 8) | (board[2] << 16) | (board[3] << 24) | (board[4] << 32) | (board[5] << 40) | (board[6] << 48);
       buckets[idx] = bucket;
-      // pipeline.set(key, std::to_string(bucket));
+      assert(bucket <= 1024);
+      pipeline.set(key, std::to_string(bucket));
       num_keys++;
       boards.pop();
       if (num_keys.load() % 100000 == 0) {
         printf("%ld keys loaded.\n", num_keys.load());
       }
     }
-    // pipeline.exec();
+    pipeline.exec();
   }
 }
 
@@ -96,15 +98,15 @@ void _process_file(std::string boards_filename) {
 int main( const int argc, const char *argv[] )
 {
   num_keys.store(0);
-  // phmap::BinaryInputArchive ar_in("/home/asellerg/data/preflop_flop_buckets.bin");
-  // printf("Loading phmap.\n");
-  // buckets.phmap_load(ar_in);
-  // printf("Loaded phmap: %ld.\n", buckets.size());
+  phmap::BinaryInputArchive ar_in("/home/asellerg/data/preflop_buckets.bin");
+  printf("Loading phmap.\n");
+  buckets.phmap_load(ar_in);
+  printf("Loaded phmap: %ld.\n", buckets.size());
   std::vector<std::thread> threads(48);
   auto start = high_resolution_clock::now();
   glob_t buf;
   char **cur;
-  std::string pattern = "/home/asellerg/data/ehs/river_boards_*";
+  std::string pattern = "/sda/data/phs_ec2_1024-512-512/flop_boards_*";
   glob(pattern.c_str(), 0, NULL, &buf);
   int i = 0;
   for (cur = buf.gl_pathv; *cur; cur++) {
@@ -117,7 +119,7 @@ int main( const int argc, const char *argv[] )
   auto stop = high_resolution_clock::now();
   auto duration = duration_cast<seconds>(stop - start);
   printf("Total time: %d seconds.\n", duration.count());
-  phmap::BinaryOutputArchive out("/home/asellerg/data/river_buckets.bin");
+  phmap::BinaryOutputArchive out("/home/asellerg/data/preflop_flop_buckets.bin");
   buckets.phmap_dump(out);
   return 0;
 }

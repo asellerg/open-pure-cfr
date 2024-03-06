@@ -81,7 +81,8 @@ int TerminalNode6p::evaluate( const hand_t &hand, const int position ) const
   for (int i = 0; i < 6; i++) {
     pot_size += money_spent[i];
   }
-  // printf("position: %d, pot_frac_recip: %d\t", position, hand.eval.pot_frac_recip[ position ][ leaf_type ]);
+  // Rake.
+  pot_size -= std::min(12, int(0.05 * pot_size));
   auto pot_share = ( pot_size / hand.eval.pot_frac_recip[ position ][ leaf_type ] )
     - money_spent[ position ];
   return pot_share;

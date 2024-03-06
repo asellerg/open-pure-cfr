@@ -48,7 +48,9 @@ protected:
          std::unordered_map<int8_t, std::vector<int8_t>> history,
          int8_t prev_round,
          int64_t num_iterations,
-         std::string history_str);
+         char *history_str,
+         int last_char,
+	       uint64_t dart);
 
   AbstractGame ag;
   const bool do_average;

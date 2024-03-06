@@ -127,7 +127,8 @@ typedef enum {
   TYPE_UINT64_T = 3,
   TYPE_UINT16_T = 4,
   TYPE_INT16_T = 5,
-  TYPE_NUM_TYPES = 6
+  TYPE_INT8_T = 6,
+  TYPE_NUM_TYPES = 7
 } pure_cfr_entry_type_t;
 
 extern const pure_cfr_entry_type_t

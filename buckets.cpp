@@ -35,10 +35,10 @@ std::unordered_map<char, int> ranks = {
 };
 
 std::unordered_map<char, int> suits = {
-  {'c', 3},
-  {'d', 2},
-  {'h', 1},
-  {'s', 0}
+  {'c', 2},
+  {'d', 1},
+  {'h', 0},
+  {'s', 3}
 };
 
 #define MAX_SUITS 4
@@ -47,13 +47,13 @@ std::atomic<uint64_t> num_keys;
 
 void _read_keys(std::string pattern) {
 
-  std::ifstream infile("/home/asellerg/data/" + pattern + ".data");
+  std::ifstream infile("/home/asellerg/data/rdb/" + pattern + ".data");
   std::string line;
-  std::string colon = " : ";
-  const std::regex base_regex(".*:\\s*([0-9]+).*");
+  std::string comma = ",";
+  const std::regex base_regex("[0-9AKQJTcdhs]+,([0-9]+),");
   while (std::getline(infile, line)) {
-    auto delimiter = line.find(colon);
-    std::string key_str = line.substr(1, delimiter - 2);
+    auto delimiter = line.find(comma);
+    std::string key_str = line.substr(0, delimiter);
     std::smatch base_match;
     std::regex_match(line, base_match, base_regex);
     auto match = base_match[1].str().c_str();
@@ -64,10 +64,12 @@ void _read_keys(std::string pattern) {
     for (int i = 0; i < strlen(key); i+=2) {
       int rank = ranks[key[i]];
       int suit = suits[key[i+1]];
-      int card = ((rank)*MAX_SUITS+(suit));
+      int card = ((13*suit)+rank);
+      // 0 means unset otherwise.
       board[i/2] = card + 1;
     }
     uint64_t idx = (board[0]) | (board[1] << 8) | (board[2] << 16) | (board[3] << 24) | (board[4] << 32) | (board[5] << 40) | (board[6] << 48);
+    assert(bucket <= 1024);
     buckets[idx] = bucket;
     num_keys.store(buckets.size());
     if (num_keys.load() % 1000 == 0) {
@@ -80,7 +82,7 @@ void _read_keys(std::string pattern) {
 int main( const int argc, const char *argv[] )
 {
   num_keys.store(0);
-  std::vector<std::thread> threads(1);
+  std::vector<std::thread> threads(13);
   auto start = high_resolution_clock::now();
   _read_keys("preflop");
   char ranks_as_str[14] = "23456789TJQKA";

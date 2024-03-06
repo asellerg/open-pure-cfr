@@ -153,7 +153,7 @@ int FcpaActionAbstraction::get_actions( const Game *game,
 	  ++num_actions;
 	  *action_mask |= (1 << 4);
 	}
-	if( pot_raise_size < max_raise_size && (state.round == 0 || anyRaises(&state))) {
+	if( pot_raise_size < max_raise_size && state.round == 0) {
 	  actions[ num_actions ] = action;
 	  actions[ num_actions ].size = pot_raise_size;
 	  ++num_actions;
@@ -165,7 +165,7 @@ int FcpaActionAbstraction::get_actions( const Game *game,
 	  ++num_actions;
 	  *action_mask |= (1 << 6);
 	}
-	if (state.round == 0 || (anyRaises(&state) || ((200 - state.spent[player]) < (3 * pot)))) {
+	if (state.round == 0 || (((200 - state.spent[player]) < int(1.5 * pot)))) {
 		/* Now add all-in */
 		actions[ num_actions ] = action;
 		actions[ num_actions ].size = max_raise_size;

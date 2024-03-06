@@ -13,6 +13,7 @@
 /* C / C++ / STL includes */
 #include <assert.h>
 #include <typeinfo>
+#include <iostream>
 
 /* C project-acpc-poker includes */
 extern "C" {
@@ -289,6 +290,8 @@ pure_cfr_entry_type_t Entries_der<T>::get_entry_type( ) const
 {
   if( typeid( T ) == typeid( uint8_t ) ) {
     return TYPE_UINT8_T;
+  } else if( typeid( T ) == typeid( int8_t ) ) {
+    return TYPE_INT8_T;
   } else if( typeid( T ) == typeid( int ) ) {
     return TYPE_INT;
   } else if( typeid( T ) == typeid( int16_t ) ) {

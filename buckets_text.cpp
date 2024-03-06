@@ -65,7 +65,7 @@ void _write_keys(int filename) {
 
     pipeline.hmset(key_str, local_strategy_dict.begin(), local_strategy_dict.end());
     k++;
-    if (k > 1) {
+    if (k > 5000) {
       pipeline.exec();
       num_writes.store(num_writes.load() + k);
       pipeline = redis.pipeline();
@@ -74,7 +74,8 @@ void _write_keys(int filename) {
     }
 
   }
-
+  pipeline.exec();
+  num_writes.store(num_writes.load() + k);
 }
 
 

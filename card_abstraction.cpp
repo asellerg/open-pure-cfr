@@ -170,7 +170,7 @@ int PotentialAwareImperfectRecallAbstraction::num_buckets( const Game *game,
   return 1;
 }
 
-int compare_card(void const *a, void const *b) { 
+int compare_card_reverse(void const *a, void const *b) {
     uint8_t aa = *(uint8_t *)a;
     uint8_t bb = *(uint8_t *)b;
 
@@ -179,21 +179,25 @@ int compare_card(void const *a, void const *b) {
     return 0;
 }
 
+int compare_card(void const *a, void const *b) {
+    uint8_t aa = *(uint8_t *)a;
+    uint8_t bb = *(uint8_t *)b;
 
-void get_redis_key(const uint8_t* cards, int num_cards, char *buffer) {
-    uint8_t hand_int[num_cards];
-    for (int i = 0; i < num_cards; i++) {
-      hand_int[i] = cards[i];
-    }
-    std::qsort(hand_int, num_cards, sizeof(uint8_t), compare_card);
-    printCards(num_cards, hand_int, 11, buffer);
+    if (aa > bb) return 1;
+    if (aa < bb) return -1;
+    return 0;
 }
 
-void sort_cards(const uint8_t* cards, int num_cards, uint64_t *hand_int) {
+void sort_cards(const uint8_t* cards, int num_cards, uint64_t *hand_int, bool reverse = true) {
+
     for (int i = 0; i < num_cards; i++) {
-      hand_int[i] = cards[i] + 1;
+      hand_int[i] = (13 * (cards[i] % 4)) + (cards[i] / 4) + 1;
     }
-    std::qsort(hand_int, num_cards, sizeof(uint64_t), compare_card);
+    if (reverse) {
+      std::qsort(hand_int, num_cards, sizeof(uint64_t), compare_card_reverse);
+    } else {
+      std::qsort(hand_int, num_cards, sizeof(uint64_t), compare_card);
+    }
 }
 
 
@@ -208,7 +212,7 @@ int PotentialAwareImperfectRecallAbstraction::get_bucket( const Game *game,
               sw::redis::Redis *redis) const
 {
   uint64_t sorted_hole_cards[2];
-  sort_cards(hole_cards[node->get_player()], 2, sorted_hole_cards);
+  sort_cards(hole_cards[node->get_player()], 2, sorted_hole_cards, true);
   uint64_t idx = 0;
   if (node->get_round() == 0) {
     idx = (sorted_hole_cards[0]) | (sorted_hole_cards[1] << 8);
@@ -221,13 +225,13 @@ int PotentialAwareImperfectRecallAbstraction::get_bucket( const Game *game,
   }
   uint64_t sorted_board_cards[5] = {0};
   if (node->get_round() == 1) {
-    sort_cards(board_cards, 3, sorted_board_cards);
+    sort_cards(board_cards, 3, sorted_board_cards, false);
     idx = (sorted_hole_cards[0]) | (sorted_hole_cards[1] << 8) | (sorted_board_cards[0] << 16) | (sorted_board_cards[1] << 24) | (sorted_board_cards[2] << 32);
   } else if (node->get_round() == 2) {
-    sort_cards(board_cards, 4, sorted_board_cards);
+    sort_cards(board_cards, 4, sorted_board_cards, false);
     idx = (sorted_hole_cards[0]) | (sorted_hole_cards[1] << 8) | (sorted_board_cards[0] << 16) | (sorted_board_cards[1] << 24) | (sorted_board_cards[2] << 32) | (sorted_board_cards[3] << 40);
   } else if (node->get_round() == 3) {
-    sort_cards(board_cards, 5, sorted_board_cards);
+    sort_cards(board_cards, 5, sorted_board_cards, false);
     idx = (sorted_hole_cards[0]) | (sorted_hole_cards[1] << 8) | (sorted_board_cards[0] << 16) | (sorted_board_cards[1] << 24) | (sorted_board_cards[2] << 32) | (sorted_board_cards[3] << 40) | (sorted_board_cards[4] << 48);
   }
   int count = cache->count(idx);

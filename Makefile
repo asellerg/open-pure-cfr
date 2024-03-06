@@ -19,6 +19,8 @@ BUCKETS_TEXT_FILES = buckets_text.cpp /home/asellerg/miniconda3/envs/epicac/lib/
 
 WRITE_CLUSTERS_FILES = write_clusters.cpp /usr/local/redis-plus-plus/lib/libredis++.a /usr/local/lib/libhiredis.a
 
+BIN_HANDS_FILES = bin_hands_by_phs.cpp /usr/local/redis-plus-plus/lib/libredis++.a /usr/local/lib/libhiredis.a
+
 LOOKUP_BUCKETS_FILES = lookup_buckets.cpp
 
 
@@ -47,6 +49,9 @@ buckets_text: $(BUCKETS_TEXT_FILES)
 
 write_clusters: $(WRITE_CLUSTERS_FILES)
 	$(CXX) $(OPT) -pthread -lhiredis -lredis++ -mcmodel=medium -o $@ $(WRITE_CLUSTERS_FILES)
+
+bin_hands: $(BIN_HANDS_FILES)
+	$(CXX) $(OPT) -pthread -lhiredis -lredis++ -mcmodel=medium -o $@ $(BIN_HANDS_FILES)
 
 lookup_buckets: $(LOOKUP_BUCKETS_FILES)
 	$(CXX) $(OPT) -fPIC -shared -pthread -o lookup_buckets.so $(LOOKUP_BUCKETS_FILES)

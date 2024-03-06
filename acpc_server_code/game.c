@@ -101,7 +101,8 @@ static enum ActionType charToAction[ 256 ] = {
 static char actionChars[ a_invalid +1 ] = "fcr";
 
 // static char suitChars[ MAX_SUITS +1] = "cdhs";
-static char suitChars[ MAX_SUITS +1] = "shdc";
+// static char suitChars[ MAX_SUITS +1] = "shdc";
+static char suitChars[ MAX_SUITS +1] = "hdcs";
 static char rankChars[ MAX_RANKS +1] = "23456789TJQKA";
 
 
@@ -688,6 +689,32 @@ void dealCards( const Game *game, rng_state_t *rng, State *state )
       ++s;
     }
   }
+
+  // KsTs8d6c4c = [55, 43, 33, 26, 18]
+  // 8s7h4d6h2h = [35, 28, 17, 24, 8]
+  // uint8_t board[5] = {35, 28, 17, 24, 8};
+  // s = 0;
+  // for( r = 0; r < game->numRounds; ++r ) {
+
+  //   for( i = 0; i < game->numBoardCards[ r ]; ++i ) {
+
+  //     // state->boardCards[ s ] = dealCard( rng, deck, numCards );
+  //     state->boardCards[ s ] = deck[ board[s] ];
+  //     deck[ board[s] ] = deck[ numCards - 1 ];
+  //     --numCards;
+  //     ++s;
+  //   }
+  // }
+
+  // for( p = 0; p < game->numPlayers; ++p ) {
+
+  //   for( i = 0; i < game->numHoleCards; ++i ) {
+
+  //     state->holeCards[ p ][ i ] = dealCard( rng, deck, numCards );
+  //     --numCards;
+  //   }
+  // }
+
 }
 
 /* check whether some portions of a state are equal,

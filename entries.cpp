@@ -53,6 +53,16 @@ Entries *new_loaded_entries( const size_t num_entries_per_bucket,
   /* Load the appropriate type of entries and advance data past the entries */
   Entries *entries = NULL;
   switch( type ) {
+
+  case TYPE_INT8_T: {
+    int8_t *int8_t_data = ( int8_t * ) ( *data );
+    entries = new Entries_der<int8_t>( num_entries_per_bucket, total_num_entries,
+          int8_t_data );
+    int8_t_data += total_num_entries;
+    ( *data ) = ( void * ) int8_t_data;
+    break;
+  }
+
   case TYPE_UINT8_T: {
     uint8_t *uint8_t_data = ( uint8_t * ) ( *data );
     entries = new Entries_der<uint8_t>( num_entries_per_bucket, total_num_entries,
