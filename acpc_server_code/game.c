@@ -818,11 +818,11 @@ int raiseIsValid( const Game *game, const State *curState,
 {
   int p;
 
-  if( numRaises( curState ) >= game->maxRaises[ curState->round ] ) {
-    /* already made maximum number of raises */
+  // if( numRaises( curState ) >= game->maxRaises[ curState->round ] ) {
+  //   /* already made maximum number of raises */
 
-    return 0;
-  }
+  //   return 0;
+  // }
 
   if( curState->numActions[ curState->round ] + game->numPlayers
       > MAX_NUM_ACTIONS ) {

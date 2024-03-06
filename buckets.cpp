@@ -64,7 +64,7 @@ void _read_keys(std::string pattern) {
     for (int i = 0; i < strlen(key); i+=2) {
       int rank = ranks[key[i]];
       int suit = suits[key[i+1]];
-      int card = ((13*suit)+rank);
+      int card = ((13*suits[key[i+1]])+rank);
       // 0 means unset otherwise.
       board[i/2] = card + 1;
     }

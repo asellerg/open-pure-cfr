@@ -116,72 +116,77 @@ int FcpaActionAbstraction::get_actions( const Game *game,
       int32_t min_raise_size;
       int32_t max_raise_size;
       if( raiseIsValid( game, &state, &min_raise_size, &max_raise_size ) ) {
-	/* Check for pot-size raise being valid.  First, get the pot size. */
-	int32_t pot = 0;
-	for( int p = 0; p < game->numPlayers; ++p ) {
-	  pot += state.spent[ p ];
-	}
-	/* Add amount needed to call.  This gives the size of a pot-sized raise */
-	uint8_t player = currentPlayer( game, &state );
-	int amount_to_call = state.maxSpent - state.spent[ player ];
-	pot += amount_to_call;
-	/* Raise size is total amount of chips committed over all rounds
-	 * after making the raise.
-	 */
-	int pot_raise_size = pot + ( state.spent[ player ] + amount_to_call );
-	// int quarter_pot_raise_size = int(0.25 * pot) + ( state.spent[ player ] + amount_to_call );
-	int one_third_pot_raise_size = int(0.33 * pot) + ( state.spent[ player ] + amount_to_call );
-	int half_pot_raise_size = int(0.5 * pot) + ( state.spent[ player ] + amount_to_call );
-	int two_thirds_pot_raise_size = int(0.66 * pot) + ( state.spent[ player ] + amount_to_call );
-	int overbet_raise_size = int(1.3 * pot) + ( state.spent[ player ] + amount_to_call );
-	// int three_quarters_pot_raise_size = int(0.75 * pot) + ( state.spent[ player ] + amount_to_call );
-	if( one_third_pot_raise_size >= min_raise_size && one_third_pot_raise_size < max_raise_size && state.round != 0) {
-	  actions[ num_actions ] = action;
-	  actions[ num_actions ].size = one_third_pot_raise_size;
-	  ++num_actions;
-	  *action_mask |= (1 << 2);
-	}
-	if( half_pot_raise_size < max_raise_size && ((state.round != 0 && anyRaises(&state)))) {
-	  actions[ num_actions ] = action;
-	  actions[ num_actions ].size = half_pot_raise_size;
-	  ++num_actions;
-	  *action_mask |= (1 << 3);
-	}
-	if( two_thirds_pot_raise_size < max_raise_size && state.round != 0 && !anyRaises(&state)) {
-	  actions[ num_actions ] = action;
-	  actions[ num_actions ].size = two_thirds_pot_raise_size;
-	  ++num_actions;
-	  *action_mask |= (1 << 4);
-	}
-	if( pot_raise_size < max_raise_size && state.round == 0) {
-	  actions[ num_actions ] = action;
-	  actions[ num_actions ].size = pot_raise_size;
-	  ++num_actions;
-	  *action_mask |= (1 << 5);
-	}
-	if( state.round != 0 && overbet_raise_size < max_raise_size && !anyRaises(&state)) {
-	  actions[ num_actions ] = action;
-	  actions[ num_actions ].size = overbet_raise_size;
-	  ++num_actions;
-	  *action_mask |= (1 << 6);
-	}
-	if (state.round == 0 || (((200 - state.spent[player]) < int(1.5 * pot)))) {
-		/* Now add all-in */
-		actions[ num_actions ] = action;
-		actions[ num_actions ].size = max_raise_size;
-		++num_actions;
-		*action_mask |= (1 << 7);
-	}
+      	auto max_raises = numRaises( &state ) >= game->maxRaises[ state.round ];
+				uint8_t player = currentPlayer( game, &state );
+
+				/* Check for pot-size raise being valid.  First, get the pot size. */
+				int32_t pot = 0;
+				for( int p = 0; p < game->numPlayers; ++p ) {
+				  pot += state.spent[ p ];
+				}
+				/* Add amount needed to call.  This gives the size of a pot-sized raise */
+				int amount_to_call = state.maxSpent - state.spent[ player ];
+				pot += amount_to_call;
+
+			  if( ! max_raises ) {
+
+					/* Raise size is total amount of chips committed over all rounds
+					 * after making the raise.
+					 */
+					int pot_raise_size = pot + ( state.spent[ player ] + amount_to_call );
+					// int quarter_pot_raise_size = int(0.25 * pot) + ( state.spent[ player ] + amount_to_call );
+					int one_third_pot_raise_size = int(0.33 * pot) + ( state.spent[ player ] + amount_to_call );
+					int half_pot_raise_size = int(0.5 * pot) + ( state.spent[ player ] + amount_to_call );
+					int two_thirds_pot_raise_size = int(0.66 * pot) + ( state.spent[ player ] + amount_to_call );
+					int overbet_raise_size = int(1.3 * pot) + ( state.spent[ player ] + amount_to_call );
+					// int three_quarters_pot_raise_size = int(0.75 * pot) + ( state.spent[ player ] + amount_to_call );
+					if( one_third_pot_raise_size >= min_raise_size && one_third_pot_raise_size < max_raise_size && state.round != 0) {
+					  actions[ num_actions ] = action;
+					  actions[ num_actions ].size = one_third_pot_raise_size;
+					  ++num_actions;
+					  *action_mask |= (1 << 2);
+					}
+					if( half_pot_raise_size < max_raise_size && ((state.round != 0 && anyRaises(&state)))) {
+					  actions[ num_actions ] = action;
+					  actions[ num_actions ].size = half_pot_raise_size;
+					  ++num_actions;
+					  *action_mask |= (1 << 3);
+					}
+					if( two_thirds_pot_raise_size < max_raise_size && state.round != 0 && !anyRaises(&state)) {
+					  actions[ num_actions ] = action;
+					  actions[ num_actions ].size = two_thirds_pot_raise_size;
+					  ++num_actions;
+					  *action_mask |= (1 << 4);
+					}
+					if( pot_raise_size < max_raise_size && state.round == 0) {
+					  actions[ num_actions ] = action;
+					  actions[ num_actions ].size = pot_raise_size;
+					  ++num_actions;
+					  *action_mask |= (1 << 5);
+					}
+					if( state.round != 0 && overbet_raise_size < max_raise_size && !anyRaises(&state)) {
+					  actions[ num_actions ] = action;
+					  actions[ num_actions ].size = overbet_raise_size;
+					  ++num_actions;
+					  *action_mask |= (1 << 6);
+					}
+				}
+				if (max_raises || state.round == 0 || (((200 - state.spent[player]) < int(1.5 * pot)))) {
+					/* Now add all-in */
+					actions[ num_actions ] = action;
+					actions[ num_actions ].size = max_raise_size;
+					++num_actions;
+					*action_mask |= (1 << 7);
+				}
       }
-	
     } else if( isValidAction( game, &state, 0, &action ) ) {
       /* Fold and call */
       if (action.type == 0) {
-	if (state.round == 0 || anyRaises(&state)) {
-      	  *action_mask |= 1;
-	  actions[ num_actions ] = action;
-          ++num_actions;
-	}
+				if (state.round == 0 || anyRaises(&state)) {
+			    *action_mask |= 1;
+				  actions[ num_actions ] = action;
+			    ++num_actions;
+				}
       } else {
       	*action_mask |= (1 << 1);
         actions[ num_actions ] = action;
