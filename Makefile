@@ -17,7 +17,7 @@ BUCKETS_SPANNER_FILES = buckets_spanner.cpp /home/asellerg/miniconda3/envs/epica
 
 BUCKETS_TEXT_FILES = buckets_text.cpp /home/asellerg/miniconda3/envs/epicac/lib/libgoogle_cloud* /home/asellerg/miniconda3/envs/epicac/lib/libproto* /usr/local/redis-plus-plus/lib/libredis++.a /usr/local/lib/libhiredis.a /home/asellerg/XPokerEval/XPokerEval.CactusKev/mtrand.o /home/asellerg/XPokerEval/XPokerEval.CactusKev/pokerlib.o
 
-WRITE_CLUSTERS_FILES = write_clusters.cpp /usr/local/redis-plus-plus/lib/libredis++.a /usr/local/lib/libhiredis.a
+WRITE_CLUSTERS_FILES = write_clusters.cpp /usr/local/redis-plus-plus/lib/libredis++.a /usr/local/lib/libhiredis.a /usr/lib/x86_64-linux-gnu/libboost_program_options.so.1.74.0
 
 BIN_HANDS_FILES = bin_hands_by_phs.cpp /usr/local/redis-plus-plus/lib/libredis++.a /usr/local/lib/libhiredis.a
 

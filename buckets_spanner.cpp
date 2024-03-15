@@ -39,7 +39,7 @@ std::vector<std::string> split(const std::string& str, char delimiter) {
 }
 
 void _write_keys(int filename) {
-  auto client = spanner::Client(spanner::MakeConnection(spanner::Database("epicac", "prod", "trial_122")));
+  auto client = spanner::Client(spanner::MakeConnection(spanner::Database("epicac", "prod", "trial_162")));
 
   int k = 0;
   std::ifstream infile("/sda/open_pure_cfr/avg_strategy/split/" + std::to_string(filename));

@@ -145,7 +145,7 @@ int PotentialAwareImperfectRecallAbstraction::num_buckets( const Game *game,
     case 0:
       return 170;
     case 1:
-      return 501;
+      return 170 * 501;
     case 2:
       return 201;
     case 3:
@@ -161,9 +161,9 @@ int PotentialAwareImperfectRecallAbstraction::num_buckets( const Game *game,
     case 0:
       return 170;
     case 1:
-      return 501;
+      return 170 * 501;
     case 2:
-      return 201;
+      return 209;
     case 3:
       return 201;
   }
@@ -223,12 +223,14 @@ int PotentialAwareImperfectRecallAbstraction::get_bucket( const Game *game,
     uint16_t bucket = (*cache)[idx];
     return bucket;
   }
+  idx = (sorted_hole_cards[0]) | (sorted_hole_cards[1] << 8);
+  int preflop_bucket = (*cache)[idx];
   uint64_t sorted_board_cards[5] = {0};
   if (node->get_round() == 1) {
-    sort_cards(board_cards, 3, sorted_board_cards, false);
+    sort_cards(board_cards, 3, sorted_board_cards, true);
     idx = (sorted_hole_cards[0]) | (sorted_hole_cards[1] << 8) | (sorted_board_cards[0] << 16) | (sorted_board_cards[1] << 24) | (sorted_board_cards[2] << 32);
   } else if (node->get_round() == 2) {
-    sort_cards(board_cards, 4, sorted_board_cards, false);
+    sort_cards(board_cards, 4, sorted_board_cards, true);
     idx = (sorted_hole_cards[0]) | (sorted_hole_cards[1] << 8) | (sorted_board_cards[0] << 16) | (sorted_board_cards[1] << 24) | (sorted_board_cards[2] << 32) | (sorted_board_cards[3] << 40);
   } else if (node->get_round() == 3) {
     sort_cards(board_cards, 5, sorted_board_cards, false);
@@ -239,7 +241,11 @@ int PotentialAwareImperfectRecallAbstraction::get_bucket( const Game *game,
     printf("Missing idx: %d for board %d %d %d %d %d %d %d.\n", idx, sorted_hole_cards[0], sorted_hole_cards[1], sorted_board_cards[0], sorted_board_cards[1], sorted_board_cards[2], sorted_board_cards[3], sorted_board_cards[4]);
     return 0;
   }
-  return (*cache)[idx];
+  int bucket = (*cache)[idx];
+  if (node->get_round() == 1) {
+    bucket += preflop_bucket * 501;
+  }
+  return bucket;
 }
 
 BlindCardAbstraction::BlindCardAbstraction( )

@@ -20,10 +20,10 @@ std::unordered_map<char, int> ranks = {
 };
 
 std::unordered_map<char, int> suits = {
-  {'c', 3},
-  {'d', 2},
-  {'h', 1},
-  {'s', 0}
+  {'c', 2},
+  {'d', 1},
+  {'h', 0},
+  {'s', 3}
 };
 
 #define MAX_SUITS 4
@@ -38,9 +38,7 @@ void init() {
 uint16_t get(char *hand) {
   uint64_t board[7] = {0};
   for (int i = 0; i < strlen(hand); i+=2) {
-    int rank = ranks[hand[i]];
-    int suit = suits[hand[i+1]];
-    int card = ((rank)*MAX_SUITS+(suit));
+    int card = ((13*suits[hand[i+1]])+ranks[hand[i]]);
     board[i/2] = card + 1;
   }
   uint64_t idx = (board[0]) | (board[1] << 8) | (board[2] << 16) | (board[3] << 24) | (board[4] << 32) | (board[5] << 40) | (board[6] << 48);

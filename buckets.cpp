@@ -69,7 +69,7 @@ void _read_keys(std::string pattern) {
       board[i/2] = card + 1;
     }
     uint64_t idx = (board[0]) | (board[1] << 8) | (board[2] << 16) | (board[3] << 24) | (board[4] << 32) | (board[5] << 40) | (board[6] << 48);
-    assert(bucket <= 1024);
+    assert(bucket <= 85000);
     buckets[idx] = bucket;
     num_keys.store(buckets.size());
     if (num_keys.load() % 1000 == 0) {
