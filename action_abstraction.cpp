@@ -99,15 +99,17 @@ int FcpaActionAbstraction::get_actions( const Game *game,
   assert( MAX_ABSTRACT_ACTIONS >= 8 );
   
   int num_actions = 0;
-	// if (state.round == 1 && !anyActions(&state)) {
-  //   Action action;
-  //   action.type = ( ActionType ) 1;
-  //   action.size = 0;
-	// 	*action_mask |= (1 << 1);
-  //   actions[ num_actions ] = action;
-  //   ++num_actions;
-  //   return num_actions;
-	// }
+  uint8_t player = currentPlayer( game, &state );
+  // Don't allow donk betting.
+	if (state.round >= 1 && !anyActions(&state) && state.lastPlayerRaise != player && state.lastRoundRaise == (state.round - 1)) {
+    Action action;
+    action.type = ( ActionType ) 1;
+    action.size = 0;
+		*action_mask |= (1 << 1);
+    actions[ num_actions ] = action;
+    ++num_actions;
+    return num_actions;
+	}
   for( int a = 0; a < NUM_ACTION_TYPES; ++a ) {
     Action action;
     action.type = ( ActionType ) a;

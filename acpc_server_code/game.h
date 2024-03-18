@@ -113,6 +113,10 @@ typedef struct {
 
   /* private cards */
   uint8_t holeCards[ MAX_PLAYERS ][ MAX_HOLE_CARDS ];
+
+  uint8_t lastPlayerRaise;
+
+  uint8_t lastRoundRaise;
 } State;
 
 typedef struct {

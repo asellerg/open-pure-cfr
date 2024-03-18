@@ -1023,7 +1023,8 @@ void doAction( const Game *game, const Action *action, State *state )
   state->maxSpent += game->raiseSize[ state->round ];
       }
     }
-
+    state->lastPlayerRaise = p;
+    state->lastRoundRaise = state->round;
     state->spent[ p ] = state->maxSpent;
     break;
 
